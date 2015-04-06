@@ -9,10 +9,10 @@
 
 #include <stdio.h>
 #include <tchar.h>
-
+#include <iostream>
 
 
 // TODO: Hier auf zusätzliche Header, die das Programm erfordert, verweisen.
 
-//#include <lp_lib.h>
-//#include <ogdf_include.h>
+#include <lp_lib.h>
+#include <ogdf_include.h>

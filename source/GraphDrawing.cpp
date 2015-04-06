@@ -2,11 +2,7 @@
 //
 
 #include <stdafx.h>
-#include <lp_lib.h>
-#include <ogdf\basic\basic.h>
-#include <ogdf\basic\Graph.h>
-#include <ogdf\basic\Graph_d.h>
-#include <ogdf\basic\graph_generators.h>
+#include <iostream>
 
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -20,6 +16,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	ogdf::Graph G;
 	ogdf::randomSimpleGraph(G, 10, 20);
 
+	std::cout << "Press ENTER to exit" << std::endl;
+	std::cin.get();
 	return 0;
 }
 
