@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include <GraphConverter.h>
 #include <unordered_map>
+#include <sstream>
 
 namespace shaman {
 
@@ -13,9 +14,8 @@ GraphConverter::~GraphConverter(void)
 {
 }
 
-ogdf::Graph GraphConverter::convert(const Graph& g)
+void GraphConverter::convert(const Graph& g, ogdf::Graph& G, ogdf::GraphAttributes& GA, const Settings& settings)
 {
-	ogdf::Graph G;
 	std::unordered_map<int, ogdf::node> nodeMap;
 	//add nodes
 	std::pair<vertex_iterator, vertex_iterator> nodeIter = vertices(g);
@@ -23,6 +23,16 @@ ogdf::Graph GraphConverter::convert(const Graph& g)
 		int index = (*it);
 		ogdf::node n = G.newNode();
 		nodeMap.insert(std::unordered_map<int, ogdf::node>::value_type(index, n));
+		//TODO: check node type
+		GA.width(n) = GA.height(n) = settings.nodeSize;
+
+		if (settings.labelNodes) {
+			std::stringstream s;
+			s << (index + 1);
+			ogdf::String os (s.str().c_str());
+			GA.labelNode(n) = os;
+			GA.colorNode(n) = settings.nodeColor;
+		}
 	}
 	//add edges
 	std::pair<edge_iterator, edge_iterator> edgeIter = edges(g);
@@ -31,9 +41,10 @@ ogdf::Graph GraphConverter::convert(const Graph& g)
 		int v = it->m_target;
 		ogdf::node un = nodeMap[u];
 		ogdf::node vn = nodeMap[v];
-		G.newEdge(un, vn);
+		ogdf::edge e = G.newEdge(un, vn);
+		GA.edgeWidth(e) = settings.edgeWidth;
 	}
-	return G;
+
 }
 
 }

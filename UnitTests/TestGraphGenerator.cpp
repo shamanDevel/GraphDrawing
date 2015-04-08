@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <iostream>
+#include <math.h>
 #include <GraphGenerator.h>
 #include <GraphConverter.h>
 #include <boost/graph/connected_components.hpp>
@@ -12,6 +13,7 @@
 #include <ogdf_include.h>
 #include <ogdf\planarlayout\PlanarDrawLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
+#include <ogdf\energybased\StressMajorizationSimple.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
@@ -36,32 +38,53 @@ namespace UnitTests
 			int numNodes = num_vertices(g);
 			int numEdges = num_edges(g);
 			//convert
-			ogdf::Graph G = GraphConverter::convert(g);
+			ogdf::Graph G;
+			ogdf::GraphAttributes GA(G, 
+				ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+				| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+				| ogdf::GraphAttributes::nodeColor );
+			GraphConverter::Settings settings;
+			settings.labelNodes = true;
+			settings.nodeSize = 10.0;
+			settings.edgeWidth = 1.0;
+			settings.nodeColor = "#AAAAAA";
+			GraphConverter::convert(g, G, GA, settings);
 			int numNodes2 = G.numberOfNodes();
 			int numEdges2 = G.numberOfEdges();
 			Assert::AreEqual(numNodes, numNodes2, L"Node count is not equal", LINE_INFO());
 			Assert::AreEqual(numEdges, numEdges2, L"Edge count is not equal", LINE_INFO());
 			//layout
-			ogdf::GraphAttributes GA(G, ogdf::GraphAttributes::nodeGraphics |	ogdf::GraphAttributes::edgeGraphics);
 			bool planar = boost::boyer_myrvold_planarity_test(g);
 			if (planar) {
+#if 0
 				//use planar layout
 				ogdf::PlanarDrawLayout pdl;
 				pdl.sideOptimization(true);
 				pdl.sizeOptimization(true);
 				pdl.call(GA);
-			} else {
+#else
 				//use spring layout
 				ogdf::FMMMLayout fmmm;
 				fmmm.useHighLevelOptions(true);
-				fmmm.unitEdgeLength(15.0); 
+				fmmm.unitEdgeLength(25.0); 
 				fmmm.newInitialPlacement(true);
 				fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
 				fmmm.call(GA);
+#endif
+			} else {
+#if 1
+				//use spring layout
+				ogdf::FMMMLayout fmmm;
+				fmmm.useHighLevelOptions(true);
+				fmmm.unitEdgeLength(10.0 * sqrt(numEdges)); 
+				fmmm.newInitialPlacement(true);
+				fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+				fmmm.call(GA);
+#else
+				ogdf::StressMajorization sm;
+				sm.call(GA);
+#endif
 			}
-			ogdf::node v;
-			forall_nodes(v,G)
-				GA.width(v) = GA.height(v) = 10.0;
 
 			//save
 			stringstream s;
