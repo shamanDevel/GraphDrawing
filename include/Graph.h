@@ -29,4 +29,5 @@ namespace shaman {
 	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, NodeProperty> Graph;
 
 	typedef boost::graph_traits<Graph>::edge_iterator edge_iterator;
+	typedef boost::graph_traits<Graph>::vertex_iterator vertex_iterator;
 }

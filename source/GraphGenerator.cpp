@@ -80,7 +80,7 @@ boost::optional<Graph> GraphGenerator::createRandomPlanarGraph(unsigned int s, u
 		//too less edges (less than a straight line)
 		return boost::optional<Graph>();
 	}
-	if (e > s*s*3) {
+	if (e > (s-1)*(s-1)*3 + (s-1)*2) {
 		//too many edges (more than the complete graph)
 		return boost::optional<Graph>();
 	}
@@ -102,6 +102,20 @@ boost::optional<Graph> GraphGenerator::createRandomPlanarGraph(unsigned int s, u
 			edges.push_back(p);
 			edgeCount += 3;
 		}
+	}
+	for (int x=0; x<s-1; ++x) {
+		int y = s-1;
+		pair<int, int> p = make_pair(x + y*s, x+1 + y*s);
+		add_edge(p.first, p.second, g);
+		edges.push_back(p);
+		edgeCount++;
+	}
+	for (int y=0; y<s-1; ++y) {
+		int x = s-1;
+		pair<int, int> p = make_pair(x + y*s, x + (y+1)*s);
+		add_edge(p.first, p.second, g);
+		edges.push_back(p);
+		edgeCount++;
 	}
 	for (int i=edgeCount; i>e; --i) {
 		if (!removeEdge(g, edges)) {
