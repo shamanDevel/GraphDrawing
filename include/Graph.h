@@ -26,5 +26,7 @@ namespace shaman {
 	};
 	typedef boost::property<node_data_t, NodeData> NodeProperty;
 	// The Graph type that is used
-	typedef boost::adjacency_list<boost::listS, boost::listS, boost::undirectedS, NodeProperty> Graph;
+	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, NodeProperty> Graph;
+
+	typedef boost::graph_traits<Graph>::edge_iterator edge_iterator;
 }

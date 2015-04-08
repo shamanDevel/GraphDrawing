@@ -47,6 +47,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>true</LinkIncremental>
+	<IncludePath>C:\Users\Sebastian\Documents\C++\GraphDrawing\include;C:\Users\Sebastian\Documents\C++\GraphDrawing\lp_solve_5.5;C:\Users\Sebastian\Documents\C++\GraphDrawing\OGDF;C:\Users\Sebastian\Documents\C++\boost_1_57_0;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -80,7 +81,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\GraphDrawing\Release;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Release\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/liblpsolve55.lib;Psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
