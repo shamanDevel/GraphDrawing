@@ -17,7 +17,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v110</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
@@ -41,7 +41,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\Sebastian\Documents\C++\boost_1_57_0;C:\Users\Sebastian\Documents\C++\GraphDrawing\include;C:\Users\Sebastian\Documents\C++\GraphDrawing\OGDF;C:\Users\Sebastian\Documents\C++\GraphDrawing\lp_solve_5.5;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Sebastian\Documents\C++\boost_1_57_0;C:\Users\Sebastian\Documents\C++\GraphDrawing\include;C:\Users\Sebastian\Documents\C++\GraphDrawing\OGDF;C:\Users\Sebastian\Documents\C++\GraphDrawing\lp_solve_5.5;$(VCInstallDir)UnitTest\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(VCInstallDir)UnitTest\lib;$(VCInstallDir)lib;$(VCInstallDir)atlmfc\lib;$(WindowsSDK_LibraryPath_x86);</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>

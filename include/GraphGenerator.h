@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Graph.h>
-#include <cstdlib>
 #include <boost/optional.hpp>
 
 using namespace std;
@@ -14,9 +13,9 @@ public:
 	GraphGenerator(void);
 	~GraphGenerator(void);
 
-	boost::optional<Graph> createRandomGraph(unsigned int nodeCount, unsigned int vertexCount);
+	boost::optional<Graph> createRandomGraph(unsigned int nodeCount, unsigned int edgeCount);
 
-	boost::optional<Graph> createRandomPlanarGraph(unsigned int nodeCount, unsigned int vertexCount);
+	boost::optional<Graph> createRandomPlanarGraph(unsigned int sqrtNodeCount, unsigned int edgeCount);
 };
 
 }
