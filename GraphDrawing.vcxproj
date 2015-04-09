@@ -96,6 +96,8 @@
     <ClInclude Include="include\Graph.h" />
     <ClInclude Include="include\GraphConverter.h" />
     <ClInclude Include="include\GraphGenerator.h" />
+    <ClInclude Include="include\MILP.h" />
+    <ClInclude Include="include\MILP_lp_solve.h" />
     <ClInclude Include="include\ogdf_include.h" />
   </ItemGroup>
   <ItemGroup>
@@ -107,6 +109,7 @@
     <ClCompile Include="source\CrossingMinimization.cpp" />
     <ClCompile Include="source\GraphConverter.cpp" />
     <ClCompile Include="source\GraphGenerator.cpp" />
+    <ClCompile Include="source\MILP_lp_solve.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
