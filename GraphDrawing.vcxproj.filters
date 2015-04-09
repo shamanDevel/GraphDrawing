@@ -36,6 +36,9 @@
     <ClInclude Include="include\GraphConverter.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="include\CrossingMinimization.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source/GraphDrawing.cpp">
@@ -48,6 +51,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="source\GraphConverter.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="source\CrossingMinimization.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

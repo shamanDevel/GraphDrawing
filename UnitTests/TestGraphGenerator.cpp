@@ -19,6 +19,8 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
 using namespace std;
 
+//#define SAVE_GRAPHS
+
 namespace UnitTests
 {		
 	TEST_CLASS(TestGraphGenerator)
@@ -53,6 +55,8 @@ namespace UnitTests
 			int numEdges2 = G.numberOfEdges();
 			Assert::AreEqual(numNodes, numNodes2, L"Node count is not equal", LINE_INFO());
 			Assert::AreEqual(numEdges, numEdges2, L"Edge count is not equal", LINE_INFO());
+
+#ifdef SAVE_GRAPHS
 			//layout
 			bool planar = boost::boyer_myrvold_planarity_test(g);
 			if (planar) {
@@ -99,8 +103,7 @@ namespace UnitTests
 			}
 			s << ".svg";
 			GA.writeSVG(s.str().c_str());
-			cout << "write graph to " << s.str() << endl;
-			//Assert::Fail(ToString(s.str()).c_str());
+#endif
 		}
 		
 		TEST_METHOD(TestWrongArguments)

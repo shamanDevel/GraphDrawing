@@ -29,5 +29,8 @@
     <ClCompile Include="TestGraphGenerator.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="TestCrossingMinimization.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

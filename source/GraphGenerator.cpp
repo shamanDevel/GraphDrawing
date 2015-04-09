@@ -70,6 +70,15 @@ boost::optional<Graph> GraphGenerator::createRandomGraph(unsigned int n, unsigne
 	for (int i=edgeCount; i>e; --i) {
 		removeEdge(g, edges);
 	}
+	//set node properties
+	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), g);
+	for (int i=0; i<n; ++i) {
+		NodeData data;
+		data.label = i+1;
+		data.type = NodeType::DEFAULT;
+		nodeProps[i] = data;
+	}
+
 	return boost::optional<Graph>(g);
 }
 
@@ -123,6 +132,16 @@ boost::optional<Graph> GraphGenerator::createRandomPlanarGraph(unsigned int s, u
 			return boost::optional<Graph>();
 		}
 	}
+
+	//set node properties
+	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), g);
+	for (int i=0; i<s*s; ++i) {
+		NodeData data;
+		data.label = i+1;
+		data.type = NodeType::DEFAULT;
+		nodeProps[i] = data;
+	}
+
 	return boost::optional<Graph>(g);
 }
 

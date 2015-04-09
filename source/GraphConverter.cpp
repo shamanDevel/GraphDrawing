@@ -23,15 +23,21 @@ void GraphConverter::convert(const Graph& g, ogdf::Graph& G, ogdf::GraphAttribut
 		int index = (*it);
 		ogdf::node n = G.newNode();
 		nodeMap.insert(std::unordered_map<int, ogdf::node>::value_type(index, n));
-		//TODO: check node type
-		GA.width(n) = GA.height(n) = settings.nodeSize;
-
-		if (settings.labelNodes) {
-			std::stringstream s;
-			s << (index + 1);
-			ogdf::String os (s.str().c_str());
-			GA.labelNode(n) = os;
-			GA.colorNode(n) = settings.nodeColor;
+		//get node data
+		NodeData data = get(node_data_t(), g, index);
+		if (data.type == NodeType::DEFAULT) {
+			//normal node
+			GA.width(n) = GA.height(n) = settings.nodeSize;
+			if (settings.labelNodes) {
+				std::stringstream s;
+				s << data.label;
+				ogdf::String os (s.str().c_str());
+				GA.labelNode(n) = os;
+				GA.colorNode(n) = settings.nodeColor;
+			}
+		} else {
+			//hidden node
+			GA.width(n) = GA.height(n) = 0;
 		}
 	}
 	//add edges

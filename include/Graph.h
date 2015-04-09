@@ -23,6 +23,9 @@ namespace shaman {
 		// The type of the node.
 		// This specifies how the node was created and how it should be displayed
 		NodeType type;
+		// The label number of the node.
+		// Only valid if the node type is DEFAULT
+		int label;
 	};
 	typedef boost::property<node_data_t, NodeData> NodeProperty;
 	// The Graph type that is used
