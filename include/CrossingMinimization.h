@@ -2,6 +2,9 @@
 
 #include <math.h>
 #include <Graph.h>
+#include <utility>
+#include <boost/optional.hpp>
+#include <MILP.h>
 
 using namespace std;
 
@@ -42,6 +45,41 @@ public:
 	///
 	///	\param g	The graph (input and output)
 	void splitGraph(Graph& g);
+
+	typedef pair<int, int> edge;
+	typedef pair<edge, edge> variableInfo;
+
+	///	\brief	Creates the variables for the ILP model.
+	///			The returned vector contains all possible edge-edge crossings.
+	///			The ILP model then creates a zero-one variable for each entry of the vector.
+	///			After solving the ILP, this vector and the resulting vector of the zero-one variables is then
+	///			passed back to realize(...) to create the new graph with edge crossings.
+	///
+	///	\param g	The initial graph
+	///
+	///	\return		A vector with an entry for every zero-one variable
+	vector<variableInfo> createVariables(const Graph& g);
+
+	///	\brief	Realizes the graph from the specified ILP solution.
+	///			Every zero-one variable that is set to true creates a crossing in the associated edge-edge pair.
+	///			IMPORTANT: The crossings must be simple, one edge must cross at most one other edge (not multiple edges)!
+	///
+	///	\param originalG	The original graph
+	///	\param variableInfo	The infos for the variables, returned by createVariables(const Graph& g)
+	///	\param variables	The result of the ILP
+	///
+	///	\return	The created graph
+	Graph realize(const Graph& originalG, const vector<variableInfo>& variableInfo, const vector<bool>& variables);
+
+	///	\brief	Solves the crossing problem to optimum.
+	///			Input: the original graph, simple and connected
+	///			Output: The optional contains the graph with inserted crossing nodes and is now planar and the crossing number.
+	///				If the problem could not be solved (too many crossing for a simple crossing), the optional is empty.
+	///
+	///	\param	originalG	The original graph
+	///	\param	lp			The mixed-integer-linear-program solver implementation
+	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
+	boost::optional< pair<Graph, unsigned int> > solve(const Graph& originalG, MILP* lp);
 };
 
 }

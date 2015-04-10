@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include <MILP_lp_solve.h>
+#include <stdio.h>
 
 namespace shaman {
 
@@ -23,6 +24,7 @@ bool MILP_lp_solve::initialize(unsigned int numVariables)
 		delete_lp(lp);
 	}
 	lp = make_lp(0, numVariables);
+	set_verbose(lp, IMPORTANT);
 	return lp != NULL;
 }
 
@@ -93,6 +95,11 @@ MILP_lp_solve::SolveResult MILP_lp_solve::solve(real* objective, real** variable
 		default: return SolveResult::Other;
 		}
 	}
+}
+
+void MILP_lp_solve::printDebug()
+{
+	print_lp(lp);
 }
 
 }

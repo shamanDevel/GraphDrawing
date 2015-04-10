@@ -26,10 +26,15 @@ namespace shaman {
 		// The label number of the node.
 		// Only valid if the node type is DEFAULT
 		int label;
+		// If the type of the node is SUBDIVISON, these variables store the id of the incident nodes of the original edge.
+		// It is used to track adjacent edges
+		// pathU < pathV
+		int pathU, pathV;
 	};
 	typedef boost::property<node_data_t, NodeData> NodeProperty;
+	typedef boost::property<boost::edge_index_t, int> EdgeProperty;
 	// The Graph type that is used
-	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, NodeProperty> Graph;
+	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, NodeProperty, EdgeProperty> Graph;
 
 	typedef boost::graph_traits<Graph>::edge_iterator edge_iterator;
 	typedef boost::graph_traits<Graph>::vertex_iterator vertex_iterator;

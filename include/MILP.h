@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 namespace shaman {
 
 /// Base interface for Mixed-Integer-Linear-Program Solvers.
@@ -95,6 +97,9 @@ public:
 	///						DON'T FREE THIS MEMORY!
 	///	\return	An enum indicating the state of the solution
 	virtual SolveResult solve(real* objective, real** variables) = 0;
+
+	///	\brief	Prints debug information about the model to stdout.
+	virtual void printDebug() {}
 };
 
 }

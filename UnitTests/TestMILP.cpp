@@ -72,6 +72,8 @@ namespace UnitTests
 			Assert::AreEqual(expectedVariables[0], variables[0], 0.001, L"Wrong x value", LINE_INFO());
 			Assert::AreEqual(expectedVariables[1], variables[1], 0.001, L"Wrong y value", LINE_INFO());
 
+			lp->printDebug();
+
 			delete colno;
 			delete row;
 			delete lp;

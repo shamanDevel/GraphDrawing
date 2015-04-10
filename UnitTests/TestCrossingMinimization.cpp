@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <iostream>
+#include <set>
 #include <math.h>
 #include <GraphGenerator.h>
 #include <GraphConverter.h>
@@ -15,6 +16,8 @@
 #include <ogdf\planarlayout\PlanarDrawLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
 #include <ogdf\energybased\StressMajorizationSimple.h>
+#include <MILP.h>
+#include <MILP_lp_solve.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
@@ -71,6 +74,117 @@ namespace UnitTests
 #ifdef SAVE_GRAPHS
 				TestAndSaveGraph(g, "subdivision");
 #endif
+			}
+		}
+
+		TEST_METHOD(TestCreateVariables)
+		{
+			GraphGenerator gen;
+			CrossingMinimization cm;
+			for (int n=5; n<50; ++n) {
+				//create complete graph
+				int m = n*(n-1)/2;
+				Graph g = *gen.createRandomGraph(n, m);
+				//create variables
+				vector<CrossingMinimization::variableInfo> variableInfos 
+					= cm.createVariables(g);
+				
+				//stringstream s;
+				//s << "n=" << n << " m=" << m << " -> variables=" << variableInfos.size() << endl;
+				////for (CrossingMinimization::variableInfo i : variableInfos) {
+				////	s << "  (" << i.first.first << "," << i.first.second;
+				////	s << ") x (" << i.second.first << "," << i.second.second;
+				////	s << ")" << endl;
+				////}
+				//Logger::WriteMessage(s.str().c_str());
+			}
+		}
+
+		TEST_METHOD(TestRealize) {
+			GraphGenerator gen;
+			CrossingMinimization cm;
+			for (int n=5; n<20; ++n) {
+				for (int i=0; i<5; ++i) {
+					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/4, n-1));
+					int m = num_edges(g);
+
+					//create variables
+					vector<CrossingMinimization::variableInfo> variableInfos 
+						= cm.createVariables(g);
+					vector<bool> variables(variableInfos.size());
+					for (int j=0; j<variables.size(); ++j)
+						variables[j] = false;
+
+					//realize graph
+					Graph g2 = cm.realize(g, variableInfos, variables);
+					int n2 = num_vertices(g2);
+					int m2 = num_edges(g2);
+
+					//Test -> Graph should be equivalent
+					Assert::AreEqual(n, n2, L"Node count does not match", LINE_INFO());
+					Assert::AreEqual(m, m2, L"Edge count does not match", LINE_INFO());
+				}
+			}
+		}
+
+		TEST_METHOD(TestRealize2) {
+			GraphGenerator gen;
+			CrossingMinimization cm;
+			for (int n=5; n<20; ++n) {
+				for (int i=0; i<5; ++i) {
+					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/4, n-1));
+					int m = num_edges(g);
+
+					//create variables
+					vector<CrossingMinimization::variableInfo> variableInfos 
+						= cm.createVariables(g);
+					vector<bool> variables(variableInfos.size());
+					for (int j=0; j<variables.size(); ++j)
+						variables[j] = false;
+
+					//set some variables to true
+					int crossings = 0;
+					set<CrossingMinimization::edge> deletedEdges;
+					for (int j=0; j<variables.size(); ++j) {
+						CrossingMinimization::edge e = variableInfos[j].first;
+						CrossingMinimization::edge f = variableInfos[j].second;
+						if (deletedEdges.count(e) > 0 || deletedEdges.count(f) > 0) {
+							continue; //preserve single crossings
+						}
+						if (RandomInt(0, 5) == 0) {
+							variables[j] = true;
+							crossings++;
+							deletedEdges.insert(e);
+							deletedEdges.insert(f);
+						}
+					}
+
+					//realize graph
+					Graph g2 = cm.realize(g, variableInfos, variables);
+					int n2 = num_vertices(g2);
+					int m2 = num_edges(g2);
+
+					int expectedN = n + crossings;
+					int expectedM = m + crossings*2;
+
+					//Test -> Graph should be equivalent
+					Assert::AreEqual(expectedN, n2, L"Node count does not match", LINE_INFO());
+					Assert::AreEqual(expectedM, m2, L"Edge count does not match", LINE_INFO());
+				}
+			}
+		}
+
+		TEST_METHOD(TestMinimization) {
+			GraphGenerator gen;
+			CrossingMinimization cm;
+			for (int n=5; n<20; ++n) {
+				for (int i=0; i<5; ++i) {
+					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/6, n-1));
+					int m = num_edges(g);
+
+					MILP* milp = new MILP_lp_solve();
+					boost::optional< pair<Graph, unsigned int> > result = cm.solve(g, milp);
+				}
 			}
 		}
 

@@ -17,6 +17,7 @@ public:
 	virtual bool setAddConstraintMode(bool mode);
 	virtual bool setObjectiveFunction(int count, real* row, int* colno, Direction dir);
 	virtual SolveResult solve(real* objective, real** variables);
+	virtual void printDebug();
 
 private:
 	lprec *lp;
