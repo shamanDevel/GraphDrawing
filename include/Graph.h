@@ -31,11 +31,13 @@ namespace shaman {
 		// pathU < pathV
 		int pathU, pathV;
 	};
-	typedef boost::property<node_data_t, NodeData> NodeProperty;
+	typedef boost::property<node_data_t, NodeData, boost::property<boost::vertex_index1_t, int> > NodeProperty;
 	typedef boost::property<boost::edge_index_t, int> EdgeProperty;
 	// The Graph type that is used
 	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, NodeProperty, EdgeProperty> Graph;
 
 	typedef boost::graph_traits<Graph>::edge_iterator edge_iterator;
 	typedef boost::graph_traits<Graph>::vertex_iterator vertex_iterator;
+	typedef boost::graph_traits<Graph>::edge_descriptor edge_descriptor;
+
 }

@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <set>
 #include <map>
+#include <unordered_map>
+#include <cassert>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
 
 using namespace std;
@@ -247,6 +249,7 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const G
 	//run the loop
 	vector<int> kuratowskiColno;
 	vector<MILP::real> kuratowskiRow;
+	set<int> kuratowkiVars;
 	while(true)
 	{
 		//solve the LP-model
@@ -279,7 +282,6 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const G
 		}
 
 		//check if the graph is now planar
-		typedef vector< boost::graph_traits<Graph>::edge_descriptor > kuratowski_edges_t;
 		kuratowski_edges_t kuratowski_edges;
 		if (boost::boyer_myrvold_planarity_test(
 			boost::boyer_myrvold_params::graph = G,
@@ -290,28 +292,139 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const G
 		}
 		else
 		{
+			cout << "Kuratowki-Subgraph:";
+			for (auto e : kuratowski_edges) {
+				cout << " (" << e.m_source << "," << e.m_target << ")" ;
+			}
+			cout << "  count=" << kuratowski_edges.size();
+			cout << endl;
+			//clear
+			int countOfVisitedCrossingNodes = 
+				simplifyKuratowskiSubgraph(G, originalG, kuratowski_edges);
+			cout << "after cleaning:";
+			for (auto e : kuratowski_edges) {
+				cout << " (" << e.m_source << "," << e.m_target << ")" ;
+			}
+			cout << "  count=" << kuratowski_edges.size();
+			cout << endl;
+
 			//add additional constraints on the edges in the subgraph -> force one to 1
 			kuratowskiColno.clear();
 			kuratowskiRow.clear();
-			cout << "Add constraint on edge";
+			kuratowkiVars.clear();
+			cout << "Add constraint on variable";
 			for (auto e : kuratowski_edges) {
 				for (auto f : kuratowski_edges) {
 					variableInfo i = variableInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target));
 					map<variableInfo, int>::iterator it = variableMap.find(i);
 					if (it != variableMap.end()) {
-						kuratowskiColno.push_back(it->second);
-						kuratowskiRow.push_back(1);
-						cout << " (" << i.first.first << "," << i.first.second << ")x("
-							<< i.second.first << "," << i.second.second << ")" ;
+						kuratowkiVars.insert(it->second);
 					}
 				}
 			}
+			for (int var : kuratowkiVars) {
+				kuratowskiColno.push_back(var);
+				kuratowskiRow.push_back(1);
+				cout << " " << var;
+			}
 			cout << endl;
-			lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], MILP::ConstraintType::GreaterThanEqual, 1);
+			lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
+				MILP::ConstraintType::GreaterThanEqual, 1 + countOfVisitedCrossingNodes);
 
 			//lp->printDebug();
+
+			
+		}
+
+
+	}
+}
+
+bool CrossingMinimization::areNodesAdjacent(const Graph& G, int u, int v) {
+	boost::graph_traits<Graph>::out_edge_iterator ei, ei_end;
+	for(boost::tie(ei, ei_end) = boost::out_edges(u, G); ei != ei_end; ++ei) {
+		if (ei->m_source == v || ei->m_target == v) {
+			return true;
 		}
 	}
+	return false;
+}
+
+int CrossingMinimization::simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG,
+													  kuratowski_edges_t& kuratowski_edges)
+{
+	int countOfVisitedCrossingNodes = 0;
+	int size = kuratowski_edges.size();
+	//removes all redundant edges from the kuratowski subgraph
+	unordered_map<int, int> nodeOccurence;
+	//add node occurence
+	for (auto e : kuratowski_edges) {
+		nodeOccurence[e.m_source]++;
+		nodeOccurence[e.m_target]++;
+	}
+	//loop as long as nodes with an occurence of 1 are there
+	while(true)
+	{
+		bool found = false;
+		for(unordered_map<int, int>::value_type entry : nodeOccurence) {
+			if (entry.second == 1) {
+				//remove the edge going out from this node
+				remove_if(kuratowski_edges.begin(), kuratowski_edges.end(),
+					[=](boost::graph_traits<Graph>::edge_descriptor e) mutable -> bool {
+						if (e.m_source == entry.first) {
+							nodeOccurence[e.m_target]--;
+							return true;
+						} else if (e.m_target == entry.first) {
+							nodeOccurence[e.m_source]--;
+							return true;
+						} else {
+							return false;
+						}
+				});
+				nodeOccurence.erase(entry.first);
+				size--;
+				found = true;
+				break;
+			}
+		}
+		if (!found) break;
+	}
+	kuratowski_edges.resize(size);
+	//check if some edges are introduced because of crossing-nodes
+	for (int i=0; i<kuratowski_edges.size(); ++i) {
+		edge_descriptor e = kuratowski_edges[i];
+		edge_descriptor f = kuratowski_edges[(i+1) % kuratowski_edges.size()];
+		int u,v,n; //u:left, v:right, n:middle
+		if (e.m_source == f.m_source) {
+			u = e.m_target; v = f.m_target;
+			n = e.m_source;
+		} else if (e.m_source == f.m_target) {
+			u = e.m_target; v = f.m_source;
+			n = e.m_source;
+		} else if (e.m_target == f.m_source) {
+			u = e.m_source; v = f.m_target;
+			n = e.m_target;
+		} else { //e.m_target == f.m_target
+			u = e.m_source; v = f.m_source;
+			n = e.m_target;
+		}
+		//check if the middle node is a crossing node
+		NodeData data = get(node_data_t(), G, n);
+		if (data.type == NodeType::CROSSING) {
+			//check if (u,v) is in the graph
+			if (areNodesAdjacent(originalG, u, v)) {
+				//replace the edge
+				e.m_source = u;
+				e.m_target = v;
+				kuratowski_edges[i] = e;
+				//delete next element (i+1)
+				kuratowski_edges.erase(kuratowski_edges.begin() + ((i+1)%kuratowski_edges.size()) );
+
+				countOfVisitedCrossingNodes++;
+			}
+		}
+	}
+	return countOfVisitedCrossingNodes;
 }
 
 }

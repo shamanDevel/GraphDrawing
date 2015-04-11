@@ -80,6 +80,11 @@ public:
 	///	\param	lp			The mixed-integer-linear-program solver implementation
 	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
 	boost::optional< pair<Graph, unsigned int> > solve(const Graph& originalG, MILP* lp);
+
+private:
+	typedef vector< edge_descriptor > kuratowski_edges_t;
+	int simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG, kuratowski_edges_t& kuratowski_edges);
+	bool areNodesAdjacent(const Graph& G, int u, int v);
 };
 
 }
