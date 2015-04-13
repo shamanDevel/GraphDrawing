@@ -39,7 +39,7 @@ void TestRealize2() {
 			int m = num_edges(g);
 
 			//create variables
-			vector<CrossingMinimization::variableInfo> variableInfos 
+			vector<CrossingMinimization::crossingInfo> variableInfos 
 				= cm.createVariables(g);
 			vector<bool> variables(variableInfos.size());
 			for (int j=0; j<variables.size(); ++j)

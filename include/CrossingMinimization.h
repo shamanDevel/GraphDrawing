@@ -4,6 +4,7 @@
 #include <Graph.h>
 #include <utility>
 #include <boost/optional.hpp>
+#include <set>
 #include <MILP.h>
 
 using namespace std;
@@ -47,7 +48,7 @@ public:
 	void splitGraph(Graph& g);
 
 	typedef pair<int, int> edge;
-	typedef pair<edge, edge> variableInfo;
+	typedef pair<edge, edge> crossingInfo;
 
 	///	\brief	Creates the variables for the ILP model.
 	///			The returned vector contains all possible edge-edge crossings.
@@ -58,7 +59,7 @@ public:
 	///	\param g	The initial graph
 	///
 	///	\return		A vector with an entry for every zero-one variable
-	vector<variableInfo> createVariables(const Graph& g);
+	vector<crossingInfo> createVariables(const Graph& g);
 
 	///	\brief	Realizes the graph from the specified ILP solution.
 	///			Every zero-one variable that is set to true creates a crossing in the associated edge-edge pair.
@@ -69,7 +70,7 @@ public:
 	///	\param variables	The result of the ILP
 	///
 	///	\return	The created graph
-	Graph realize(const Graph& originalG, const vector<variableInfo>& variableInfo, const vector<bool>& variables);
+	Graph realize(const Graph& originalG, const vector<crossingInfo>& variableInfo, const vector<bool>& variables);
 
 	///	\brief	Solves the crossing problem to optimum.
 	///			Input: the original graph, simple and connected
@@ -85,6 +86,9 @@ private:
 	typedef vector< edge_descriptor > kuratowski_edges_t;
 	int simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG, kuratowski_edges_t& kuratowski_edges);
 	bool areNodesAdjacent(const Graph& G, int u, int v);
+	void addCrossingToSet(set<crossingInfo>& set, crossingInfo crossing);
+	void printCrossingSet(const set<crossingInfo>& set);
+	void printCrossingSet(const vector<crossingInfo>& set);
 };
 
 }
