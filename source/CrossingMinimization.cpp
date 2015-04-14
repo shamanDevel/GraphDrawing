@@ -82,7 +82,7 @@ vector<CrossingMinimization::crossingInfo> CrossingMinimization::createVariables
 			u1 = v1data.pathU;
 			v1 = v1data.pathV;
 		}
-		for (edge_iterator it2 = edgeIter.first; it2!=edgeIter.second; ++it2) {
+		for (edge_iterator it2 = it1; it2!=edgeIter.second; ++it2) {
 			int u2Orig = min(it2->m_source, it2->m_target);
 			int v2Orig = max(it2->m_source, it2->m_target);
 			int u2 = u2Orig;
@@ -104,7 +104,15 @@ vector<CrossingMinimization::crossingInfo> CrossingMinimization::createVariables
 				continue;
 
 			//add edge
-			info.push_back(crossingInfo(edge(u1Orig,v1Orig), edge(u2Orig,v2Orig)));
+			if (u1Orig < u2Orig) {
+				info.push_back(crossingInfo(edge(u1Orig,v1Orig), edge(u2Orig,v2Orig)));
+			} else if (u1Orig > u2Orig) {
+				info.push_back(crossingInfo(edge(u2Orig,v2Orig), edge(u1Orig,v1Orig)));
+			} else if (v1Orig < v2Orig) {
+				info.push_back(crossingInfo(edge(u1Orig,v1Orig), edge(u2Orig,v2Orig)));
+			} else {
+				info.push_back(crossingInfo(edge(u2Orig,v2Orig), edge(u1Orig,v1Orig)));
+			}
 		}
 	}
 
@@ -123,11 +131,12 @@ Graph CrossingMinimization::realize(const Graph& originalG,
 			edge e = variableInfo[i].first;
 			edge f = variableInfo[i].second;
 			//introduce crossing node
-			cout << "introduce crossing between (" << e.first << "," << e.second
-				<< ") and (" << f.first << "," << f.second << ")" << endl;
+			/*cout << "introduce crossing between (" << e.first << "," << e.second
+				<< ") and (" << f.first << "," << f.second << ")" << endl;*/
 			int node = add_vertex(G);
 			NodeData data;
 			data.type = NodeType::CROSSING;
+			data.variable = i;
 			nodeProps[node] = data;
 			int m1 = num_edges(G);
 			remove_edge(e.first, e.second, G);
@@ -147,6 +156,11 @@ Graph CrossingMinimization::realize(const Graph& originalG,
 }
 
 boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const Graph& originalG, MILP* lp)
+{
+	return solveBacktracking(originalG);
+}
+
+boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const Graph& originalG, MILP* lp)
 {
 	//pre-test: check if the graph is not already planar
 	if (boost::boyer_myrvold_planarity_test(originalG)) {
@@ -313,69 +327,110 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const G
 
 			kuratowskiColno.clear();
 			kuratowskiRow.clear();
-			H.clear();
-			D.clear();
 
-			//extract kuratowski constraint
-			for (auto e : kuratowski_edges) {
-				for (auto f : kuratowski_edges) {
-					addCrossingToSet(H, crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target)));
-				}
-			}
-			for (int i=0; i<varCount; ++i) {
-				if (variables[i]) {
-					addCrossingToSet(D, variableInfos[i]);
-				}
-			}
-			cout << "H^2: "; printCrossingSet(H); cout << endl;
-			cout << "D': "; printCrossingSet(D); cout << endl;
-			vector<crossingInfo> H_diff_D;
-			set_difference(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_diff_D));
-			vector<crossingInfo> H_cut_D;
-			set_intersection(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_cut_D));
-			cout << "H^2 \\ D': "; printCrossingSet(H_diff_D); cout << endl;
-			cout << "H^2 cut D': "; printCrossingSet(H_cut_D); cout << endl;
+			//H.clear();
+			//D.clear();
 
-			//add additional constraints on the edges in the subgraph to exclude D
-			kuratowkiVars.clear();
-			for (crossingInfo i : H_diff_D) {
-				map<crossingInfo, int>::iterator it = variableMap.find(i);
-				if (it != variableMap.end()) {
-					kuratowkiVars.insert(it->second);
-				}
-			}
-			for (int var : kuratowkiVars) {
-				kuratowskiColno.push_back(var);
-				kuratowskiRow.push_back(1);
-			}
-			for (crossingInfo i : H_cut_D) {
-				kuratowskiColno.push_back(variableMap[i]);
-				kuratowskiRow.push_back(-1);
-			}
-			lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
-				MILP::ConstraintType::GreaterThanEqual, 1 - H_cut_D.size());
-			lp->printDebug();
+			////extract kuratowski constraint
+			//for (auto e : kuratowski_edges) {
+			//	for (auto f : kuratowski_edges) {
+			//		addCrossingToSet(H, crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target)));
+			//	}
+			//}
+			//for (int i=0; i<varCount; ++i) {
+			//	if (variables[i]) {
+			//		addCrossingToSet(D, variableInfos[i]);
+			//	}
+			//}
+			//cout << "H^2: "; printCrossingSet(H); cout << endl;
+			//cout << "D': "; printCrossingSet(D); cout << endl;
+			//vector<crossingInfo> H_diff_D;
+			//set_difference(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_diff_D));
+			//vector<crossingInfo> H_cut_D;
+			//set_intersection(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_cut_D));
+			//cout << "H^2 \\ D': "; printCrossingSet(H_diff_D); cout << endl;
+			//cout << "H^2 cut D': "; printCrossingSet(H_cut_D); cout << endl;
+
+			////add additional constraints on the edges in the subgraph to exclude D
+			//kuratowkiVars.clear();
+			//for (crossingInfo i : H_diff_D) {
+			//	map<crossingInfo, int>::iterator it = variableMap.find(i);
+			//	if (it != variableMap.end()) {
+			//		kuratowkiVars.insert(it->second);
+			//	} else {
+			//		crossingInfo i2 = crossingInfo(edge(i.first.first, i.second.second),
+			//			edge(i.second.first, i.first.second) );
+			//		it = variableMap.find(i2);
+			//		if (it != variableMap.end()) {
+			//			kuratowkiVars.insert(it->second);
+			//		}
+			//	}
+			//}
+			//cout << "constraints: (+)";
+			//for (int var : kuratowkiVars) {
+			//	kuratowskiColno.push_back(var);
+			//	kuratowskiRow.push_back(1);
+			//	crossingInfo info = variableInfos[var - 1];
+			//	cout << " (" << info.first.first << "," << info.first.second
+			//		<< ")x(" << info.second.first << "," << info.second.second << ")";
+			//}
+			//cout << "  (-)";
+			//for (crossingInfo i : H_cut_D) {
+			//	kuratowskiColno.push_back(variableMap[i]);
+			//	kuratowskiRow.push_back(-1);
+			//	cout << " (" << i.first.first << "," << i.first.second
+			//		<< ")x(" << i.second.first << "," << i.second.second << ")";
+			//}
+			//cout << endl;
+			//lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
+			//	MILP::ConstraintType::GreaterThanEqual, 1 - H_cut_D.size());
+			//lp->printDebug();
 
 			//add additional constraints on the edges in the subgraph -> force one to 1
-			/*kuratowkiVars.clear();
-			cout << "Add constraint on variable";
+			kuratowkiVars.clear();
+			cout << "Add constraint on crossings";
 			for (auto e : kuratowski_edges) {
 				for (auto f : kuratowski_edges) {
-					crossingInfo i = crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target));
-					map<crossingInfo, int>::iterator it = variableMap.find(i);
-					if (it != variableMap.end()) {
-						kuratowkiVars.insert(it->second);
+					int u,v,n; //u:left, v:right, n:middle
+					if (e.m_source == f.m_source) {
+
+						u = e.m_target; v = f.m_target;
+						n = e.m_source;
+					} else if (e.m_source == f.m_target) {
+						u = e.m_target; v = f.m_source;
+						n = e.m_source;
+					} else if (e.m_target == f.m_source) {
+						u = e.m_source; v = f.m_target;
+						n = e.m_target;
+					} else { //e.m_target == f.m_target
+						u = e.m_source; v = f.m_source;
+						n = e.m_target;
+					}
+					//check if the middle node is a crossing node
+					NodeData data = get(node_data_t(), G, n);
+					if (data.type == NodeType::CROSSING) { 
+						//it is a crossing node, add crossing variable directly
+						kuratowkiVars.insert(data.variable + 1);
+					} else {
+						//a normal node
+						crossingInfo i = crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target));
+						map<crossingInfo, int>::iterator it = variableMap.find(i);
+						if (it != variableMap.end()) {
+							kuratowkiVars.insert(it->second);
+						}
 					}
 				}
 			}
 			for (int var : kuratowkiVars) {
 				kuratowskiColno.push_back(var);
 				kuratowskiRow.push_back(1);
-				cout << " " << var;
+				crossingInfo info = variableInfos[var - 1];
+				cout << " (" << info.first.first << "," << info.first.second
+					<< ")x(" << info.second.first << "," << info.second.second << ")";
 			}
 			cout << endl;
 			lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
-				MILP::ConstraintType::GreaterThanEqual, 1 + countOfVisitedCrossingNodes);*/
+				MILP::ConstraintType::GreaterThanEqual, 1 + countOfVisitedCrossingNodes);
 
 			//lp->printDebug();
 
@@ -503,6 +558,79 @@ int CrossingMinimization::simplifyKuratowskiSubgraph(const Graph& G, const Graph
 	//	}
 	//}
 	return countOfVisitedCrossingNodes;
+}
+
+boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveBacktracking(const Graph& originalG)
+{
+	//pre-test: check if the graph is not already planar
+	if (boost::boyer_myrvold_planarity_test(originalG)) {
+		//already planar
+		return boost::optional <pair<Graph, unsigned int> >(pair<Graph, unsigned int>(originalG, 0));
+	}
+
+	int n = num_vertices(originalG);
+	int m = num_edges(originalG);
+
+	//create variables
+	vector<crossingInfo> variableInfos = createVariables(originalG);
+	unsigned int varCount = variableInfos.size();
+	vector<bool> variableAssignment(varCount);
+	for (int i=0; i<varCount; ++i) variableAssignment[i] = false;
+
+	int crLower = crGLower(n, m);
+	int crUpper = crKnUpper(n);
+
+	//setup backtracking cache
+	set<edge> usedEdges;
+
+	//run backtracking
+	return solveBacktrackingRec(originalG, variableInfos, variableAssignment, 0, usedEdges, crLower, crUpper, 0);
+}
+
+boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveBacktrackingRec(
+		const Graph& originalG, vector<crossingInfo>& variableInfo, vector<bool>& variableAssignment,
+		int startVariable, set<edge> usedEdges, int crLower, int crUpper, int numCrossings ) 
+{
+	if (numCrossings >= crUpper) {
+		//reached upper crossing number -> break, not optimal
+		return boost::optional< pair<Graph, unsigned int> >();
+	}
+
+	for (int i=startVariable; i<variableInfo.size(); ++i)
+	{
+		crossingInfo& crossing = variableInfo[i];
+		if (usedEdges.count(crossing.first) == 0 && usedEdges.count(crossing.second) == 0) {
+			//try this edge
+			variableAssignment[i] = true;
+
+			Graph G = realize(originalG, variableInfo, variableAssignment);
+			if (boost::boyer_myrvold_planarity_test(G)) {
+				//we found it
+				return boost::optional< pair<Graph, unsigned int> > (make_pair(G, numCrossings + 1));
+			}
+
+			//reserve edge
+			usedEdges.insert(crossing.first);
+			usedEdges.insert(crossing.second);
+
+			//do recursion
+			boost::optional< pair<Graph, unsigned int> > result
+				= solveBacktrackingRec(originalG, variableInfo, variableAssignment, i+1, usedEdges, 
+					crLower, crUpper, numCrossings + 1);
+			if (result) {
+				//found in recursion
+				return result;
+			}
+
+			//undo changes
+			variableAssignment[i] = false;
+			usedEdges.erase(crossing.first);
+			usedEdges.erase(crossing.second);
+		}
+	}
+
+	//not found
+	return boost::optional< pair<Graph, unsigned int> >();
 }
 
 }

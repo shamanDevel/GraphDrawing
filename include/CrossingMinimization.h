@@ -56,9 +56,15 @@ public:
 	///			After solving the ILP, this vector and the resulting vector of the zero-one variables is then
 	///			passed back to realize(...) to create the new graph with edge crossings.
 	///
+	///			If the result is ((u1,v1),(u2,v2)), then the following equations are valid:
+	///				u1 < v1 and u2 < v2
+	///				u1 <= u2
+	///				if u1 == u2 then v1 < v2
+	///				
+	///
 	///	\param g	The initial graph
 	///
-	///	\return		A vector with an entry for every zero-one variable
+	///	\return		A vector with an entry for every zero-one variable.
 	vector<crossingInfo> createVariables(const Graph& g);
 
 	///	\brief	Realizes the graph from the specified ILP solution.
@@ -82,6 +88,10 @@ public:
 	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
 	boost::optional< pair<Graph, unsigned int> > solve(const Graph& originalG, MILP* lp);
 
+	boost::optional< pair<Graph, unsigned int> > solveLp(const Graph& originalG, MILP* lp);
+
+	boost::optional< pair<Graph, unsigned int> > solveBacktracking(const Graph& originalG);
+
 private:
 	typedef vector< edge_descriptor > kuratowski_edges_t;
 	int simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG, kuratowski_edges_t& kuratowski_edges);
@@ -89,6 +99,9 @@ private:
 	void addCrossingToSet(set<crossingInfo>& set, crossingInfo crossing);
 	void printCrossingSet(const set<crossingInfo>& set);
 	void printCrossingSet(const vector<crossingInfo>& set);
+	boost::optional< pair<Graph, unsigned int> > solveBacktrackingRec(
+		const Graph& originalG, vector<crossingInfo>& variableInfo, vector<bool>& variableAssignment,
+		int startVariable, set<edge> usedEdges, int crLower, int crUpper, int numCrossings );
 };
 
 }

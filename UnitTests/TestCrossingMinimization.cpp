@@ -82,21 +82,38 @@ namespace UnitTests
 			GraphGenerator gen;
 			CrossingMinimization cm;
 			for (int n=5; n<50; ++n) {
-				//create complete graph
-				int m = n*(n-1)/2;
-				Graph g = *gen.createRandomGraph(n, m);
-				//create variables
-				vector<CrossingMinimization::variableInfo> variableInfos 
-					= cm.createVariables(g);
-				
-				//stringstream s;
-				//s << "n=" << n << " m=" << m << " -> variables=" << variableInfos.size() << endl;
-				////for (CrossingMinimization::variableInfo i : variableInfos) {
-				////	s << "  (" << i.first.first << "," << i.first.second;
-				////	s << ") x (" << i.second.first << "," << i.second.second;
-				////	s << ")" << endl;
-				////}
-				//Logger::WriteMessage(s.str().c_str());
+				for (int i=0; i<5; ++i) {
+					//create graph
+					int m = i==0 ? n*(n-1)/2 : RandomInt(n-1, n*(n-1)/2);
+					Graph g = *gen.createRandomGraph(n, m);
+					//create variables
+					vector<CrossingMinimization::crossingInfo> variableInfos 
+						= cm.createVariables(g);
+					for (CrossingMinimization::crossingInfo i : variableInfos) {
+						Assert::IsTrue(i.first.first < i.first.second, L"Edge is orientated the other way", LINE_INFO());
+						Assert::IsTrue(i.second.first < i.second.second, L"Edge is orientated the other way", LINE_INFO());
+						Assert::IsTrue(i.first.first <= i.second.first, L"Crossing is ordered the other way", LINE_INFO());
+						if (i.first.first == i.second.second) {
+							Assert::IsTrue(i.first.second < i.second.second, L"Crossing is not ordered correctly", LINE_INFO());
+						}
+					}
+					sort( variableInfos.begin(), variableInfos.end() );
+					Assert::IsTrue(adjacent_find( variableInfos.begin(), variableInfos.end() )
+						== variableInfos.end(), L"Variables are not unique", LINE_INFO());
+		
+					stringstream s;
+					s << "n=" << n << " m=" << m << " -> variables=" << variableInfos.size() << endl;
+					Logger::WriteMessage(s.str().c_str());
+
+					//stringstream s;
+					//s << "n=" << n << " m=" << m << " -> variables=" << variableInfos.size() << endl;
+					////for (CrossingMinimization::variableInfo i : variableInfos) {
+					////	s << "  (" << i.first.first << "," << i.first.second;
+					////	s << ") x (" << i.second.first << "," << i.second.second;
+					////	s << ")" << endl;
+					////}
+					//Logger::WriteMessage(s.str().c_str());
+				}
 			}
 		}
 
@@ -109,7 +126,7 @@ namespace UnitTests
 					int m = num_edges(g);
 
 					//create variables
-					vector<CrossingMinimization::variableInfo> variableInfos 
+					vector<CrossingMinimization::crossingInfo> variableInfos 
 						= cm.createVariables(g);
 					vector<bool> variables(variableInfos.size());
 					for (int j=0; j<variables.size(); ++j)
@@ -136,7 +153,7 @@ namespace UnitTests
 					int m = num_edges(g);
 
 					//create variables
-					vector<CrossingMinimization::variableInfo> variableInfos 
+					vector<CrossingMinimization::crossingInfo> variableInfos 
 						= cm.createVariables(g);
 					vector<bool> variables(variableInfos.size());
 					for (int j=0; j<variables.size(); ++j)
@@ -174,7 +191,36 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestMinimization) {
+		TEST_METHOD(TestRealize3) {
+			//Make the K6 planar
+			GraphGenerator gen;
+			CrossingMinimization cm;
+			Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
+			vector<CrossingMinimization::crossingInfo> variableInfos = cm.createVariables(K6);
+			vector<bool> variables(variableInfos.size());
+			for (int j=0; j<variables.size(); ++j)
+				variables[j] = false;
+			Assert::IsFalse(boost::boyer_myrvold_planarity_test(K6), L"K6 should not be planar", LINE_INFO());
+			
+			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
+			int countOfOnes = 0;
+			for (int i=0; i<variableInfos.size(); ++i) {
+				CrossingMinimization::crossingInfo info = variableInfos[i];
+				if (info == make_pair( make_pair(0,1), make_pair(3,5) )
+					|| info == make_pair( make_pair(0,4), make_pair(2,3) )
+					|| info == make_pair( make_pair(1,2), make_pair(4,5) )) {
+						variables[i] = true;
+						countOfOnes++;
+				}
+			}
+			Assert::AreEqual(3, countOfOnes, L"Only three crossings should be set", LINE_INFO());
+
+			//realize
+			Graph g = cm.realize(K6, variableInfos, variables);
+			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"K6 should now be planarized", LINE_INFO());
+		}
+
+		/*TEST_METHOD(TestMinimization) {
 			GraphGenerator gen;
 			CrossingMinimization cm;
 			for (int n=5; n<20; ++n) {
@@ -186,7 +232,7 @@ namespace UnitTests
 					boost::optional< pair<Graph, unsigned int> > result = cm.solve(g, milp);
 				}
 			}
-		}
+		}*/
 
 		static int RandomInt(int min, int max) 
 		{

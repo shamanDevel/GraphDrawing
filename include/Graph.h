@@ -30,6 +30,8 @@ namespace shaman {
 		// It is used to track adjacent edges
 		// pathU < pathV
 		int pathU, pathV;
+		// If the type of the node is CROSSING, this variable stores the index of the crossing variable in the lp-model.
+		int variable;
 	};
 	typedef boost::property<node_data_t, NodeData, boost::property<boost::vertex_index1_t, int> > NodeProperty;
 	typedef boost::property<boost::edge_index_t, int> EdgeProperty;
