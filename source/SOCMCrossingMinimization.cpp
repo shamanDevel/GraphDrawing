@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include <CrossingMinimization.h>
+#include <SOCMCrossingMinimization.h>
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -14,16 +14,18 @@ using namespace std;
 
 namespace shaman {
 
-CrossingMinimization::CrossingMinimization(void)
+SOCMCrossingMinimization::SOCMCrossingMinimization(MILP* lp)
+	: lp(lp)
 {
+	assert (lp != null);
 }
 
 
-CrossingMinimization::~CrossingMinimization(void)
+SOCMCrossingMinimization::~SOCMCrossingMinimization(void)
 {
 }
 
-void CrossingMinimization::splitGraph(Graph& g)
+void SOCMCrossingMinimization::splitGraph(Graph& g)
 {
 	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), g);
 	int l = num_edges(g);
@@ -63,7 +65,7 @@ void CrossingMinimization::splitGraph(Graph& g)
 
 }
 
-vector<CrossingMinimization::crossingInfo> CrossingMinimization::createVariables(const Graph& g)
+vector<SOCMCrossingMinimization::crossingInfo> SOCMCrossingMinimization::createVariables(const Graph& g)
 {
 	vector<crossingInfo> info;
 	//iterate through every E x E
@@ -119,7 +121,7 @@ vector<CrossingMinimization::crossingInfo> CrossingMinimization::createVariables
 	return info;
 }
 
-Graph CrossingMinimization::realize(const Graph& originalG, 
+Graph SOCMCrossingMinimization::realize(const Graph& originalG, 
 									const vector<crossingInfo>& variableInfo, const vector<bool>& variables)
 {
 	//clone graph
@@ -131,8 +133,6 @@ Graph CrossingMinimization::realize(const Graph& originalG,
 			edge e = variableInfo[i].first;
 			edge f = variableInfo[i].second;
 			//introduce crossing node
-			/*cout << "introduce crossing between (" << e.first << "," << e.second
-				<< ") and (" << f.first << "," << f.second << ")" << endl;*/
 			int node = add_vertex(G);
 			NodeData data;
 			data.type = NodeType::CROSSING;
@@ -155,12 +155,13 @@ Graph CrossingMinimization::realize(const Graph& originalG,
 	return G;
 }
 
-boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solve(const Graph& originalG, MILP* lp)
+boost::optional< std::pair<Graph, unsigned int> > SOCMCrossingMinimization::solve(const Graph& originalG)
 {
-	return solveBacktracking(originalG);
+	//return solveBacktracking(originalG);
+	return solveLp(originalG);
 }
 
-boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const Graph& originalG, MILP* lp)
+boost::optional< pair<Graph, unsigned int> > SOCMCrossingMinimization::solveLp(const Graph& originalG)
 {
 	//pre-test: check if the graph is not already planar
 	if (boost::boyer_myrvold_planarity_test(originalG)) {
@@ -229,7 +230,7 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 	}
 
 	//set upper and lower bound
-	int crLower = crGLower(n, m);
+	int crLower = 0;//crGLower(n, m);
 	int crUpper = crKnUpper(n);
 	if (!lp->addConstraint(varCount, &completeRow[0], &completeColno[0], MILP::ConstraintType::GreaterThanEqual, crLower)
 		|| !lp->addConstraint(varCount, &completeRow[0], &completeColno[0], MILP::ConstraintType::LessThanEqual, crUpper)) {
@@ -237,22 +238,8 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 	}
 
 	//set constraints to ensure at most one crossing per edge
-	vector<int> oneCrossingColno;
-	vector<MILP::real> oneCrossingRow;
-	for (pair<edge, set<edge> > i : crossingEdges)
-	{
-		edge e = i.first;
-		oneCrossingColno.clear();
-		oneCrossingRow.clear();
-		for (edge f : i.second) {
-			oneCrossingColno.push_back(variableMap[crossingInfo(e, f)]);
-			oneCrossingRow.push_back(1);
-		}
-		if (!lp->addConstraint(oneCrossingColno.size(), &oneCrossingRow[0], &oneCrossingColno[0], MILP::LessThanEqual, 1)) {
-			return boost::optional< pair<Graph, unsigned int> >();
-		}
-		cout << "edge (" << e.first << "," << e.second << ") can cross with " << oneCrossingColno.size() << " other edges" << endl;
-	}
+	if (!addSimpleEdgeCrossingConstraints(crossingEdges, variableMap, lp))
+		return boost::optional< pair<Graph, unsigned int> >();
 
 	if (!lp->setAddConstraintMode(false)) {
 		return boost::optional< pair<Graph, unsigned int> >();
@@ -262,11 +249,6 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 	//lp->printDebug();
 
 	//run the loop
-	vector<int> kuratowskiColno;
-	vector<MILP::real> kuratowskiRow;
-	set<int> kuratowkiVars;
-	set<crossingInfo> H;
-	set<crossingInfo> D;
 	while(true)
 	{
 		//solve the LP-model
@@ -286,6 +268,14 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 			cout << " " << resultVariables[i];
 		}
 		cout << endl;
+		for (int i=0; i<varCount; ++i) {
+			if (variables[i]) {
+				edge e = variableInfos[i].first;
+				edge f = variableInfos[i].second;
+				cout << "introduce crossing between (" << e.first << "," << e.second
+				<< ") and (" << f.first << "," << f.second << ")" << endl;
+			}
+		}
 
 		//realize graph
 		Graph G = realize(originalG, variableInfos, variables);
@@ -325,112 +315,8 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 			cout << "  count=" << kuratowski_edges.size();
 			cout << endl;
 
-			kuratowskiColno.clear();
-			kuratowskiRow.clear();
-
-			//H.clear();
-			//D.clear();
-
-			////extract kuratowski constraint
-			//for (auto e : kuratowski_edges) {
-			//	for (auto f : kuratowski_edges) {
-			//		addCrossingToSet(H, crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target)));
-			//	}
-			//}
-			//for (int i=0; i<varCount; ++i) {
-			//	if (variables[i]) {
-			//		addCrossingToSet(D, variableInfos[i]);
-			//	}
-			//}
-			//cout << "H^2: "; printCrossingSet(H); cout << endl;
-			//cout << "D': "; printCrossingSet(D); cout << endl;
-			//vector<crossingInfo> H_diff_D;
-			//set_difference(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_diff_D));
-			//vector<crossingInfo> H_cut_D;
-			//set_intersection(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_cut_D));
-			//cout << "H^2 \\ D': "; printCrossingSet(H_diff_D); cout << endl;
-			//cout << "H^2 cut D': "; printCrossingSet(H_cut_D); cout << endl;
-
-			////add additional constraints on the edges in the subgraph to exclude D
-			//kuratowkiVars.clear();
-			//for (crossingInfo i : H_diff_D) {
-			//	map<crossingInfo, int>::iterator it = variableMap.find(i);
-			//	if (it != variableMap.end()) {
-			//		kuratowkiVars.insert(it->second);
-			//	} else {
-			//		crossingInfo i2 = crossingInfo(edge(i.first.first, i.second.second),
-			//			edge(i.second.first, i.first.second) );
-			//		it = variableMap.find(i2);
-			//		if (it != variableMap.end()) {
-			//			kuratowkiVars.insert(it->second);
-			//		}
-			//	}
-			//}
-			//cout << "constraints: (+)";
-			//for (int var : kuratowkiVars) {
-			//	kuratowskiColno.push_back(var);
-			//	kuratowskiRow.push_back(1);
-			//	crossingInfo info = variableInfos[var - 1];
-			//	cout << " (" << info.first.first << "," << info.first.second
-			//		<< ")x(" << info.second.first << "," << info.second.second << ")";
-			//}
-			//cout << "  (-)";
-			//for (crossingInfo i : H_cut_D) {
-			//	kuratowskiColno.push_back(variableMap[i]);
-			//	kuratowskiRow.push_back(-1);
-			//	cout << " (" << i.first.first << "," << i.first.second
-			//		<< ")x(" << i.second.first << "," << i.second.second << ")";
-			//}
-			//cout << endl;
-			//lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
-			//	MILP::ConstraintType::GreaterThanEqual, 1 - H_cut_D.size());
-			//lp->printDebug();
-
-			//add additional constraints on the edges in the subgraph -> force one to 1
-			kuratowkiVars.clear();
-			cout << "Add constraint on crossings";
-			for (auto e : kuratowski_edges) {
-				for (auto f : kuratowski_edges) {
-					int u,v,n; //u:left, v:right, n:middle
-					if (e.m_source == f.m_source) {
-
-						u = e.m_target; v = f.m_target;
-						n = e.m_source;
-					} else if (e.m_source == f.m_target) {
-						u = e.m_target; v = f.m_source;
-						n = e.m_source;
-					} else if (e.m_target == f.m_source) {
-						u = e.m_source; v = f.m_target;
-						n = e.m_target;
-					} else { //e.m_target == f.m_target
-						u = e.m_source; v = f.m_source;
-						n = e.m_target;
-					}
-					//check if the middle node is a crossing node
-					NodeData data = get(node_data_t(), G, n);
-					if (data.type == NodeType::CROSSING) { 
-						//it is a crossing node, add crossing variable directly
-						kuratowkiVars.insert(data.variable + 1);
-					} else {
-						//a normal node
-						crossingInfo i = crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target));
-						map<crossingInfo, int>::iterator it = variableMap.find(i);
-						if (it != variableMap.end()) {
-							kuratowkiVars.insert(it->second);
-						}
-					}
-				}
-			}
-			for (int var : kuratowkiVars) {
-				kuratowskiColno.push_back(var);
-				kuratowskiRow.push_back(1);
-				crossingInfo info = variableInfos[var - 1];
-				cout << " (" << info.first.first << "," << info.first.second
-					<< ")x(" << info.second.first << "," << info.second.second << ")";
-			}
-			cout << endl;
-			lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
-				MILP::ConstraintType::GreaterThanEqual, 1 + countOfVisitedCrossingNodes);
+			if (!addKuratowskiConstraints(originalG, G, crossingEdges, variableMap, variableInfos, kuratowski_edges, lp))
+				return boost::optional< pair<Graph, unsigned int> >();
 
 			//lp->printDebug();
 
@@ -441,7 +327,174 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveLp(const
 	}
 }
 
-void CrossingMinimization::addCrossingToSet(set<crossingInfo>& set, crossingInfo crossing)
+bool SOCMCrossingMinimization::addSimpleEdgeCrossingConstraints(
+	const map<edge, set<edge> >& crossingEdges, map<crossingInfo, int>& variableMap, MILP* lp)
+{
+	vector<int> oneCrossingColno;
+	vector<MILP::real> oneCrossingRow;
+	for (pair<edge, set<edge> > i : crossingEdges)
+	{
+		edge e = i.first;
+		oneCrossingColno.clear();
+		oneCrossingRow.clear();
+		for (edge f : i.second) {
+			oneCrossingColno.push_back(variableMap[crossingInfo(e, f)]);
+			oneCrossingRow.push_back(1);
+		}
+		if (!lp->addConstraint(oneCrossingColno.size(), &oneCrossingRow[0], &oneCrossingColno[0], MILP::LessThanEqual, 1)) {
+			
+		}
+		cout << "edge (" << e.first << "," << e.second << ") can cross with " << oneCrossingColno.size() << " other edges" << endl;
+	}
+}
+
+bool SOCMCrossingMinimization::addKuratowskiConstraints(
+		const Graph& originalG, const Graph& G, const map<edge, set<edge> >& crossingEdges, 
+		const map<crossingInfo, int>& variableMap, const vector<crossingInfo>& variableInfos, 
+		const kuratowski_edges_t& kuratowski_edges, MILP* lp)
+{
+	int m = num_edges(originalG);
+	vector<int> kuratowskiColno;
+	vector<MILP::real> kuratowskiRow;
+	set<int> kuratowskiVars;
+	set<int> kuratowskiNodes;
+	int countOfVisitedCrossingNodes = 0;
+	//set<crossingInfo> H;
+	//set<crossingInfo> D;
+
+	//H.clear();
+	//D.clear();
+
+	////extract kuratowski constraint
+	//for (auto e : kuratowski_edges) {
+	//	for (auto f : kuratowski_edges) {
+	//		addCrossingToSet(H, crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target)));
+	//	}
+	//}
+	//for (int i=0; i<varCount; ++i) {
+	//	if (variables[i]) {
+	//		addCrossingToSet(D, variableInfos[i]);
+	//	}
+	//}
+	//cout << "H^2: "; printCrossingSet(H); cout << endl;
+	//cout << "D': "; printCrossingSet(D); cout << endl;
+	//vector<crossingInfo> H_diff_D;
+	//set_difference(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_diff_D));
+	//vector<crossingInfo> H_cut_D;
+	//set_intersection(H.begin(), H.end(), D.begin(), D.end(), back_inserter(H_cut_D));
+	//cout << "H^2 \\ D': "; printCrossingSet(H_diff_D); cout << endl;
+	//cout << "H^2 cut D': "; printCrossingSet(H_cut_D); cout << endl;
+
+	////add additional constraints on the edges in the subgraph to exclude D
+	//kuratowkiVars.clear();
+	//for (crossingInfo i : H_diff_D) {
+	//	map<crossingInfo, int>::iterator it = variableMap.find(i);
+	//	if (it != variableMap.end()) {
+	//		kuratowkiVars.insert(it->second);
+	//	} else {
+	//		crossingInfo i2 = crossingInfo(edge(i.first.first, i.second.second),
+	//			edge(i.second.first, i.first.second) );
+	//		it = variableMap.find(i2);
+	//		if (it != variableMap.end()) {
+	//			kuratowkiVars.insert(it->second);
+	//		}
+	//	}
+	//}
+	//cout << "constraints: (+)";
+	//for (int var : kuratowkiVars) {
+	//	kuratowskiColno.push_back(var);
+	//	kuratowskiRow.push_back(1);
+	//	crossingInfo info = variableInfos[var - 1];
+	//	cout << " (" << info.first.first << "," << info.first.second
+	//		<< ")x(" << info.second.first << "," << info.second.second << ")";
+	//}
+	//cout << "  (-)";
+	//for (crossingInfo i : H_cut_D) {
+	//	kuratowskiColno.push_back(variableMap[i]);
+	//	kuratowskiRow.push_back(-1);
+	//	cout << " (" << i.first.first << "," << i.first.second
+	//		<< ")x(" << i.second.first << "," << i.second.second << ")";
+	//}
+	//cout << endl;
+	//lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
+	//	MILP::ConstraintType::GreaterThanEqual, 1 - H_cut_D.size());
+
+	//add additional constraints on the edges in the subgraph -> force one to 1
+	for (auto e : kuratowski_edges) {
+		if (e.m_source < m) kuratowskiNodes.insert(e.m_source);
+		if (e.m_target < m) kuratowskiNodes.insert(e.m_target);
+	}
+	cout << "Kuratowski nodes:";
+	for (int n : kuratowskiNodes) {
+		cout << " " << n;
+	}
+	cout << endl;
+
+	kuratowskiVars.clear();
+	for (int u1 : kuratowskiNodes) {
+		for (int v1 : kuratowskiNodes) {
+			edge e (min(u1, v1), max(u1, v1));
+			if (crossingEdges.count(e) == 0) continue;
+			for (int u2 : kuratowskiNodes) {
+				for (int v2 : kuratowskiNodes) {
+					edge f (min(u2, v2), max(u2, v2));
+					if (crossingEdges.count(f) == 0) continue;
+					crossingInfo i (e, f);
+					map<crossingInfo, int>::const_iterator it = variableMap.find(i);
+					if (it != variableMap.end()) {
+						kuratowskiVars.insert(it->second);
+					}
+				}
+			}
+		}
+	}
+	//for (auto e : kuratowski_edges) {
+	//	for (auto f : kuratowski_edges) {
+	//		int u,v,n; //u:left, v:right, n:middle
+	//		if (e.m_source == f.m_source) {
+	//			u = e.m_target; v = f.m_target;
+	//			n = e.m_source;
+	//		} else if (e.m_source == f.m_target) {
+	//			u = e.m_target; v = f.m_source;
+	//			n = e.m_source;
+	//		} else if (e.m_target == f.m_source) {
+	//			u = e.m_source; v = f.m_target;
+	//			n = e.m_target;
+	//		} else { //e.m_target == f.m_target
+	//			u = e.m_source; v = f.m_source;
+	//			n = e.m_target;
+	//		}
+	//		//check if the middle node is a crossing node
+	//		NodeData data = get(node_data_t(), G, n);
+	//		if (data.type == NodeType::CROSSING) { 
+	//			//it is a crossing node, add crossing variable directly
+	//			kuratowsiVars.insert(data.variable + 1);
+	//		} else {
+	//			//a normal node
+	//			crossingInfo i = crossingInfo(edge(e.m_source, e.m_target), edge(f.m_source, f.m_target));
+	//			map<crossingInfo, int>::const_iterator it = variableMap.find(i);
+	//			if (it != variableMap.end()) {
+	//				kuratowskiVars.insert(it->second);
+	//			}
+	//		}
+	//	}
+	//}
+	cout << "Add constraint on crossings";
+	for (int var : kuratowskiVars) {
+		kuratowskiColno.push_back(var);
+		kuratowskiRow.push_back(1);
+		crossingInfo info = variableInfos[var - 1];
+		cout << " (" << info.first.first << "," << info.first.second
+			<< ")x(" << info.second.first << "," << info.second.second << ")";
+	}
+	cout << endl;
+	bool result = lp->addConstraint(kuratowskiColno.size(), &kuratowskiRow[0], &kuratowskiColno[0], 
+		MILP::ConstraintType::GreaterThanEqual, 1 + countOfVisitedCrossingNodes);
+
+	return result;
+}
+
+void SOCMCrossingMinimization::addCrossingToSet(set<crossingInfo>& set, crossingInfo crossing)
 {
 	int u1 = min(crossing.first.first, crossing.first.second);
 	int v1 = max(crossing.first.first, crossing.first.second);
@@ -458,14 +511,14 @@ void CrossingMinimization::addCrossingToSet(set<crossingInfo>& set, crossingInfo
 	}
 }
 
-void CrossingMinimization::printCrossingSet(const set<crossingInfo>& set)
+void SOCMCrossingMinimization::printCrossingSet(const set<crossingInfo>& set)
 {
 	for (const crossingInfo& v : set) {
 		cout << "{{" << v.first.first << "," << v.first.second << "};{"
 			<< v.second.first << "," << v.second.second << "} ";
 	}
 }
-void CrossingMinimization::printCrossingSet(const vector<crossingInfo>& set)
+void SOCMCrossingMinimization::printCrossingSet(const vector<crossingInfo>& set)
 {
 	for (const crossingInfo& v : set) {
 		cout << "{{" << v.first.first << "," << v.first.second << "};{"
@@ -473,7 +526,7 @@ void CrossingMinimization::printCrossingSet(const vector<crossingInfo>& set)
 	}
 }
 
-bool CrossingMinimization::areNodesAdjacent(const Graph& G, int u, int v) {
+bool SOCMCrossingMinimization::areNodesAdjacent(const Graph& G, int u, int v) {
 	boost::graph_traits<Graph>::out_edge_iterator ei, ei_end;
 	for(boost::tie(ei, ei_end) = boost::out_edges(u, G); ei != ei_end; ++ei) {
 		if (ei->m_source == v || ei->m_target == v) {
@@ -483,7 +536,7 @@ bool CrossingMinimization::areNodesAdjacent(const Graph& G, int u, int v) {
 	return false;
 }
 
-int CrossingMinimization::simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG,
+int SOCMCrossingMinimization::simplifyKuratowskiSubgraph(const Graph& G, const Graph& originalG,
 													  kuratowski_edges_t& kuratowski_edges)
 {
 	int countOfVisitedCrossingNodes = 0;
@@ -560,7 +613,7 @@ int CrossingMinimization::simplifyKuratowskiSubgraph(const Graph& G, const Graph
 	return countOfVisitedCrossingNodes;
 }
 
-boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveBacktracking(const Graph& originalG)
+boost::optional< pair<Graph, unsigned int> > SOCMCrossingMinimization::solveBacktracking(const Graph& originalG)
 {
 	//pre-test: check if the graph is not already planar
 	if (boost::boyer_myrvold_planarity_test(originalG)) {
@@ -587,7 +640,7 @@ boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveBacktrac
 	return solveBacktrackingRec(originalG, variableInfos, variableAssignment, 0, usedEdges, crLower, crUpper, 0);
 }
 
-boost::optional< pair<Graph, unsigned int> > CrossingMinimization::solveBacktrackingRec(
+boost::optional< pair<Graph, unsigned int> > SOCMCrossingMinimization::solveBacktrackingRec(
 		const Graph& originalG, vector<crossingInfo>& variableInfo, vector<bool>& variableAssignment,
 		int startVariable, set<edge> usedEdges, int crLower, int crUpper, int numCrossings ) 
 {

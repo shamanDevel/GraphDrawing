@@ -29,10 +29,13 @@
     <ClCompile Include="TestGraphGenerator.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="TestCrossingMinimization.cpp">
+    <ClCompile Include="TestMILP.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="TestMILP.cpp">
+    <ClCompile Include="TestSOCMCrossingMinimization.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="TestOOCMCrossingMinimization.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

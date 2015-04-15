@@ -10,6 +10,7 @@
 #include <GraphGenerator.h>
 #include <GraphConverter.h>
 #include <CrossingMinimization.h>
+#include <SOCMCrossingMinimization.h>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <ogdf_include.h>
@@ -27,7 +28,7 @@ using namespace std;
 
 namespace UnitTests
 {		
-	TEST_CLASS(TestCrossingMinimization)
+	TEST_CLASS(TestSOCMCrossingMinimization)
 	{
 	public:
 
@@ -54,7 +55,7 @@ namespace UnitTests
 
 		TEST_METHOD(TestSplitGraph) {
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
 				Graph g = *gen.createRandomGraph(n, max(n*(n-1)/4, n-1));
 				int m = num_edges(g);
@@ -80,16 +81,16 @@ namespace UnitTests
 		TEST_METHOD(TestCreateVariables)
 		{
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<50; ++n) {
 				for (int i=0; i<5; ++i) {
 					//create graph
 					int m = i==0 ? n*(n-1)/2 : RandomInt(n-1, n*(n-1)/2);
 					Graph g = *gen.createRandomGraph(n, m);
 					//create variables
-					vector<CrossingMinimization::crossingInfo> variableInfos 
+					vector<SOCMCrossingMinimization::crossingInfo> variableInfos 
 						= cm.createVariables(g);
-					for (CrossingMinimization::crossingInfo i : variableInfos) {
+					for (SOCMCrossingMinimization::crossingInfo i : variableInfos) {
 						Assert::IsTrue(i.first.first < i.first.second, L"Edge is orientated the other way", LINE_INFO());
 						Assert::IsTrue(i.second.first < i.second.second, L"Edge is orientated the other way", LINE_INFO());
 						Assert::IsTrue(i.first.first <= i.second.first, L"Crossing is ordered the other way", LINE_INFO());
@@ -119,14 +120,14 @@ namespace UnitTests
 
 		TEST_METHOD(TestRealize) {
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
 				for (int i=0; i<5; ++i) {
 					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/4, n-1));
 					int m = num_edges(g);
 
 					//create variables
-					vector<CrossingMinimization::crossingInfo> variableInfos 
+					vector<SOCMCrossingMinimization::crossingInfo> variableInfos 
 						= cm.createVariables(g);
 					vector<bool> variables(variableInfos.size());
 					for (int j=0; j<variables.size(); ++j)
@@ -146,14 +147,14 @@ namespace UnitTests
 
 		TEST_METHOD(TestRealize2) {
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
 				for (int i=0; i<5; ++i) {
 					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/4, n-1));
 					int m = num_edges(g);
 
 					//create variables
-					vector<CrossingMinimization::crossingInfo> variableInfos 
+					vector<SOCMCrossingMinimization::crossingInfo> variableInfos 
 						= cm.createVariables(g);
 					vector<bool> variables(variableInfos.size());
 					for (int j=0; j<variables.size(); ++j)
@@ -161,10 +162,10 @@ namespace UnitTests
 
 					//set some variables to true
 					int crossings = 0;
-					set<CrossingMinimization::edge> deletedEdges;
+					set<SOCMCrossingMinimization::edge> deletedEdges;
 					for (int j=0; j<variables.size(); ++j) {
-						CrossingMinimization::edge e = variableInfos[j].first;
-						CrossingMinimization::edge f = variableInfos[j].second;
+						SOCMCrossingMinimization::edge e = variableInfos[j].first;
+						SOCMCrossingMinimization::edge f = variableInfos[j].second;
 						if (deletedEdges.count(e) > 0 || deletedEdges.count(f) > 0) {
 							continue; //preserve single crossings
 						}
@@ -194,9 +195,9 @@ namespace UnitTests
 		TEST_METHOD(TestRealize3) {
 			//Make the K6 planar
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			SOCMCrossingMinimization cm(NULL);
 			Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
-			vector<CrossingMinimization::crossingInfo> variableInfos = cm.createVariables(K6);
+			vector<SOCMCrossingMinimization::crossingInfo> variableInfos = cm.createVariables(K6);
 			vector<bool> variables(variableInfos.size());
 			for (int j=0; j<variables.size(); ++j)
 				variables[j] = false;
@@ -205,7 +206,7 @@ namespace UnitTests
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
 			for (int i=0; i<variableInfos.size(); ++i) {
-				CrossingMinimization::crossingInfo info = variableInfos[i];
+				SOCMCrossingMinimization::crossingInfo info = variableInfos[i];
 				if (info == make_pair( make_pair(0,1), make_pair(3,5) )
 					|| info == make_pair( make_pair(0,4), make_pair(2,3) )
 					|| info == make_pair( make_pair(1,2), make_pair(4,5) )) {
@@ -222,16 +223,18 @@ namespace UnitTests
 
 		/*TEST_METHOD(TestMinimization) {
 			GraphGenerator gen;
-			CrossingMinimization cm;
+			MILP* milp = new MILP_lp_solve();
+			CrossingMinimization* cm = new SOCMCrossingMinimization(milp);
 			for (int n=5; n<20; ++n) {
 				for (int i=0; i<5; ++i) {
 					Graph g = *gen.createRandomGraph(n, max(n*(n-1)/6, n-1));
 					int m = num_edges(g);
 
-					MILP* milp = new MILP_lp_solve();
-					boost::optional< pair<Graph, unsigned int> > result = cm.solve(g, milp);
+					boost::optional< pair<Graph, unsigned int> > result = cm->solve(g);
 				}
 			}
+			delete cm;
+			delete milp;
 		}*/
 
 		static int RandomInt(int min, int max) 
