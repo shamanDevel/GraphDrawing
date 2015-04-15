@@ -53,7 +53,7 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestSplitGraph) {
+		TEST_METHOD(SOCM_TestSplitGraph) {
 			GraphGenerator gen;
 			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
@@ -78,7 +78,7 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestCreateVariables)
+		TEST_METHOD(SOCM_TestCreateVariables)
 		{
 			GraphGenerator gen;
 			SOCMCrossingMinimization cm(NULL);
@@ -118,7 +118,7 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestRealize) {
+		TEST_METHOD(SOCM_TestRealize) {
 			GraphGenerator gen;
 			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
@@ -145,7 +145,7 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestRealize2) {
+		TEST_METHOD(SOCM_TestRealize2) {
 			GraphGenerator gen;
 			SOCMCrossingMinimization cm(NULL);
 			for (int n=5; n<20; ++n) {
@@ -192,7 +192,7 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(TestRealize3) {
+		TEST_METHOD(SOCM_TestRealize3) {
 			//Make the K6 planar
 			GraphGenerator gen;
 			SOCMCrossingMinimization cm(NULL);

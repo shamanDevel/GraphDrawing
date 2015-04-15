@@ -6,6 +6,7 @@
 #include <vector>
 #include <utility>
 #include <tuple>
+#include <sstream>
 
 namespace shaman {
 
@@ -36,8 +37,8 @@ public:
 	///			The first outCrossings.size() elements of variableAssignment contain the assignment of the variables
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
-	Graph realize(const Graph& originalG, vector<crossing>& outCrossings, vector<crossingOrder>& outCrossingOrders,
-		vector<bool> variableAssignment);
+	Graph realize(const Graph& originalG, vector<crossing>& crossings, vector<crossingOrder>& crossingOrders,
+		vector<bool> variableAssignment, stringstream& s);
 
 private:
 	MILP* lp;

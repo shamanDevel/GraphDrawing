@@ -17,7 +17,6 @@ namespace shaman {
 SOCMCrossingMinimization::SOCMCrossingMinimization(MILP* lp)
 	: lp(lp)
 {
-	assert (lp != null);
 }
 
 
@@ -342,10 +341,11 @@ bool SOCMCrossingMinimization::addSimpleEdgeCrossingConstraints(
 			oneCrossingRow.push_back(1);
 		}
 		if (!lp->addConstraint(oneCrossingColno.size(), &oneCrossingRow[0], &oneCrossingColno[0], MILP::LessThanEqual, 1)) {
-			
+			return false;
 		}
 		cout << "edge (" << e.first << "," << e.second << ") can cross with " << oneCrossingColno.size() << " other edges" << endl;
 	}
+	return true;
 }
 
 bool SOCMCrossingMinimization::addKuratowskiConstraints(

@@ -37,7 +37,7 @@ void GraphConverter::convert(const Graph& g, ogdf::Graph& G, ogdf::GraphAttribut
 			}
 		} else {
 			//hidden node
-			GA.width(n) = GA.height(n) = 0;
+			GA.width(n) = GA.height(n) = settings.edgeWidth * 2;
 		}
 	}
 	//add edges
