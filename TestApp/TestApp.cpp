@@ -62,7 +62,7 @@ void OOCM_TestRealize2()
 	OOCMCrossingMinimization cm(NULL);
 	vector<OOCMCrossingMinimization::crossing> crossings;
 	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
-	map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
+	OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 	vector<bool> assignment;
 	boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
 
@@ -190,6 +190,35 @@ void OOCM_TestRealize2()
 	TestAndSaveGraph(k6, "K6");
 	TestAndSaveGraph(k8, "K8");
 #endif
+
+	//Test if this assignment is also feasible in the lp-model
+	MILP* lp = new MILP_lp_solve();
+	lp->initialize(crossings.size() + crossingOrders.size());
+	cout << "LP initialized" << endl;
+	cm.setObjectiveFunction(crossings, lp);
+	cout << "Objective function set" << endl;
+	vector<OOCMCrossingMinimization::edge> edgeVector;
+	std::pair<edge_iterator, edge_iterator> edgeIter = edges(K8);
+	for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
+		OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
+		edgeVector.push_back(e);
+	}
+	cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp);
+	cout << "Linear Ordering Constraints added" << endl;
+	vector<MILP::real> row(1);
+	vector<int> colno(1);
+	row[0] = 1;
+	lp->setAddConstraintMode(true);
+	for (int i=0; i<assignment.size(); ++i) {
+		colno[0] = i+1;
+		lp->addConstraint(1, &row[0], &colno[0], MILP::ConstraintType::Equal, assignment[i] ? 1 : 0);
+	}
+	lp->setAddConstraintMode(false);
+	cout << "Solution constraints added" << endl;
+	MILP::real objective;
+	MILP::real* variables;
+	MILP::SolveResult solveResult = lp->solve(&objective, &variables);
+	cout << "Solved: " << solveResult << " objective: " << objective << endl;
 }
 
 int _tmain(int argc, _TCHAR* argv[])

@@ -91,7 +91,7 @@ namespace UnitTests
 
 					//realize graph
 					stringstream s;
-					map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
+					OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 					Graph g2 = cm.realize(g, crossings, crossingOrdersMap, assignment, s);
 					int n2 = num_vertices(g2);
@@ -104,13 +104,13 @@ namespace UnitTests
 			}
 		}
 
-		TEST_METHOD(OOCM_TestRealize2) 
+		TEST_METHOD(OOCM_TestRealizeK6) 
 		{
 			GraphGenerator gen;
 			OOCMCrossingMinimization cm(NULL);
 			vector<OOCMCrossingMinimization::crossing> crossings;
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
-			map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
+			OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 			vector<bool> assignment;
 			stringstream rs;
 
@@ -144,8 +144,56 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
 			Logger::WriteMessage(rs.str().c_str());
-			//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
+			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
+
+			//Test if this assignment is also feasible in the lp-model
+			MILP* lp = new MILP_lp_solve();
+			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
+			Logger::WriteMessage("LP initialized.");
+			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
+			Logger::WriteMessage("Objective function set.");
+			vector<OOCMCrossingMinimization::edge> edgeVector;
+			std::pair<edge_iterator, edge_iterator> edgeIter = edges(K6);
+			for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
+				OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
+				edgeVector.push_back(e);
+			}
+			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
+				L"unable to add linear ordering constraints", LINE_INFO());
+			Logger::WriteMessage("Linear Ordering Constraints added.");
+			vector<MILP::real> row(1);
+			vector<int> colno(1);
+			row[0] = 1;
+			lp->setAddConstraintMode(true);
+			for (int i=0; i<assignment.size(); ++i) {
+				colno[0] = i+1;
+				Assert::IsTrue(lp->addConstraint(1, &row[0], &colno[0], MILP::ConstraintType::Equal, assignment[i] ? 1 : 0));
+			}
+			lp->setAddConstraintMode(false);
+			Logger::WriteMessage("Solution constraints added.");
+			MILP::real objective;
+			MILP::real* variables;
+			MILP::SolveResult solveResult = lp->solve(&objective, &variables);
+			Logger::WriteMessage("Solved.");
+			Assert::AreEqual((int) MILP::SolveResult::Optimal, (int) solveResult, L"solver does not return Optimal solution", LINE_INFO());
+			Assert::AreEqual(3.0, objective, L"wrong objective", LINE_INFO());
+
+#ifdef SAVE_GRAPHS
+			TestAndSaveGraph(k6, "K6");
+#endif
+
+		}
+
+		TEST_METHOD(OOCM_TestRealizeK8)
+		{
+			GraphGenerator gen;
+			OOCMCrossingMinimization cm(NULL);
+			vector<OOCMCrossingMinimization::crossing> crossings;
+			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
+			OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
+			vector<bool> assignment;
+			stringstream rs;
 
 			//Make the K8 planar
 			static const int K8crossings[18][4] = {
@@ -202,7 +250,7 @@ namespace UnitTests
 			rs = stringstream();
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-			g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
+			Graph g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
 			Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
@@ -233,11 +281,42 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
 			Logger::WriteMessage(rs.str().c_str());
-			//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
+			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
 			Graph k8 = g;
 
+			//Test if this assignment is also feasible in the lp-model
+			MILP* lp = new MILP_lp_solve();
+			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
+			Logger::WriteMessage("LP initialized.");
+			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
+			Logger::WriteMessage("Objective function set.");
+			vector<OOCMCrossingMinimization::edge> edgeVector;
+			std::pair<edge_iterator, edge_iterator> edgeIter = edges(K8);
+			for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
+				OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
+				edgeVector.push_back(e);
+			}
+			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
+				L"unable to add linear ordering constraints", LINE_INFO());
+			Logger::WriteMessage("Linear Ordering Constraints added.");
+			vector<MILP::real> row(1);
+			vector<int> colno(1);
+			row[0] = 1;
+			lp->setAddConstraintMode(true);
+			for (int i=0; i<assignment.size(); ++i) {
+				colno[0] = i+1;
+				Assert::IsTrue(lp->addConstraint(1, &row[0], &colno[0], MILP::ConstraintType::Equal, assignment[i] ? 1 : 0));
+			}
+			lp->setAddConstraintMode(false);
+			Logger::WriteMessage("Solution constraints added.");
+			MILP::real objective;
+			MILP::real* variables;
+			MILP::SolveResult solveResult = lp->solve(&objective, &variables);
+			Logger::WriteMessage("Solved.");
+			Assert::AreEqual((int) MILP::SolveResult::Optimal, (int) solveResult, L"solver does not return Optimal solution", LINE_INFO());
+			Assert::AreEqual(18.0, objective, L"wrong objective", LINE_INFO());
+
 #ifdef SAVE_GRAPHS
-			TestAndSaveGraph(k6, "K6");
 			TestAndSaveGraph(k8, "K8");
 #endif
 		}

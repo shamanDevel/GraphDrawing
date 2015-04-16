@@ -2,6 +2,7 @@
 #include <OOCMCrossingMinimization.h>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <algorithm>
+#include <limits>
 
 namespace shaman {
 
@@ -55,17 +56,19 @@ void OOCMCrossingMinimization::createVariables(
 }
 
 void OOCMCrossingMinimization::createCrossingOrdersMap(
-	const vector<crossingOrder>& crossingOrders, map<crossingOrder, int>& outMap)
+	const vector<crossingOrder>& crossingOrders, crossingOrderMap_t& outMap)
 {
 	outMap.clear();
 	for (int i=0; i<crossingOrders.size(); ++i) {
-		outMap.emplace(crossingOrders[i], i);
+		//outMap.emplace(crossingOrders[i], i);
+		const crossingOrder& o = crossingOrders[i];
+		outMap[get<0>(o)][get<1>(o)][get<2>(o)] = i;
 	}
 }
 
 Graph OOCMCrossingMinimization::realize(
-	const Graph& originalG, vector<crossing>& crossings, map<crossingOrder, int>& crossingOrdersMap,
-	vector<bool> variableAssignment, ostream& s)
+	const Graph& originalG, vector<crossing>& crossings, crossingOrderMap_t& crossingOrdersMap,
+	const vector<bool>& variableAssignment, ostream& s)
 {
 	Graph G = originalG;
 	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), G);
@@ -111,10 +114,17 @@ Graph OOCMCrossingMinimization::realize(
 			for (edge f : ex) {
 				for (edge g : ex) {
 					crossingOrder o = make_tuple(e, f, g);
-					map< crossingOrder, int >::const_iterator it = crossingOrdersMap.find(o);
-					if (it == crossingOrdersMap.end()) 
-						continue;
-					int index = it->second + crossings.size();
+					//map< crossingOrder, int >::const_iterator it = crossingOrdersMap.find(o);
+					//if (it == crossingOrdersMap.end()) 
+					//	continue;
+					//int index = it->second + crossings.size();
+					const auto& it1 = crossingOrdersMap.find(e);
+					if (it1 == crossingOrdersMap.end()) continue;
+					const auto& it2 = it1->second.find(f);
+					if (it2 == it1->second.end()) continue;
+					const auto& it3 = it2->second.find(g);
+					if (it3 == it2->second.end()) continue;
+					int index = it3->second + crossings.size();
 					bool result = variableAssignment[index];
 					cache[o] = result;
 				}
@@ -123,8 +133,11 @@ Graph OOCMCrossingMinimization::realize(
 			sort(ex.begin(), ex.end(), [=](const edge& f, const edge& g) -> bool
 			{
 				crossingOrder o = make_tuple(e, f, g);
-				bool result = cache.find(o)->second;
-				return result;
+				map<crossingOrder, bool>::const_iterator it = cache.find(o);
+				if (it == cache.end())
+					return false;
+				else
+					return it->second;
 			});
 			s;
 		}
@@ -234,6 +247,132 @@ Graph OOCMCrossingMinimization::realize(
 	}
 
 	return G;
+}
+
+bool OOCMCrossingMinimization::setObjectiveFunction(const vector<crossing>& crossings, MILP* lp)
+{
+	vector<MILP::real> row (crossings.size());
+	vector<int> colno (crossings.size());
+	for (int i=0; i<crossings.size(); ++i) {
+		row[i] = 1; //TODO: edge weight (from preprocessing)
+		colno[i] = i+1;
+	}
+	bool result = lp->setObjectiveFunction(crossings.size(), &row[0], &colno[0], MILP::Direction::Minimize);
+	return result;
+}
+
+bool OOCMCrossingMinimization::addLinearOrderingConstraints(
+	const vector<edge>& edges, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap, MILP* lp)
+{
+	int countX = crossings.size();
+	int countY = crossingOrderMap.size();
+	
+	if (!lp->setAddConstraintMode(true)) 
+		return false;
+
+	map<crossing, int> crossingMap;
+	for (int i=0; i<countX; ++i)
+		crossingMap[crossings[i]] = i;
+
+	vector<MILP::real> row(4);
+	vector<int> colno(4);
+	for (const auto& m1 : crossingOrderMap) {
+		const edge& e = m1.first;
+		for (const auto& m2 : m1.second) {
+			const edge& f = m2.first;
+			for (const auto& m3 : m2.second) {
+				const edge& g = m3.first;
+				int index = m3.second;
+				//add crossing-existence constraint
+				row[0] = 1; colno[0] = crossingMap.at(minmax(e, f)) + 1;
+				row[1] = -1; colno[1] = index + countX + 1;
+				if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
+					return false;
+				colno[0] = crossingMap.at(minmax(e, g)) + 1;
+				if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
+					return false;
+				//add order-existence constraint
+				//TODO: constraint is added twice, check f<g
+				row[0] = 1; colno[0] = index + countX + 1;
+				row[1] = 1; colno[1] = crossingOrderMap.at(e).at(g).at(f) + countX + 1;
+				row[2] = -1; colno[2] = crossingMap.at(minmax(e, f)) + 1;
+				row[3] = -1; colno[3] = crossingMap.at(minmax(e, g)) + 1;
+				if (!lp->addConstraint(4, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, -1))
+					return false;
+				//add mirror-order constraint
+				//TODO: constraint is added twice, check f<g
+				row[0] = 1; colno[0] = index + countX + 1;
+				row[1] = 1; colno[1] = crossingOrderMap.at(e).at(g).at(f) + countX + 1;
+				if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::LessThanEqual, 1))
+				return false;
+			}
+		}
+	}
+
+	//add cyclic-order-constraint
+	for (const edge& e : edges) {
+		const auto& me = crossingOrderMap.at(e);
+		for (const auto& m1 : me) {
+			const edge& f = m1.first;
+			for (const auto& m2 : m1.second) {
+				const edge& g = m2.first;
+				const int i1 = m2.second;
+				for (edge h : edges) {
+					if (e!=h && h>f && h>g) {
+						const auto& it1 = me.find(g);
+						if (it1 == me.end()) continue;
+						const auto& it2 = it1->second.find(h);
+						if (it2 == it1->second.end()) continue;
+						const int i2 = it2->second;
+						const auto& it3 = me.find(h);
+						if (it3 == me.end()) continue;
+						const auto& it4 = it3->second.find(f);
+						if (it4 == it3->second.end()) continue;
+						const int i3 = it4->second;
+
+						row[0] = 1; colno[0] = i1 + countX + 1;
+						row[1] = 1; colno[1] = i2 + countX + 1;
+						row[2] = 1; colno[2] = i3 + countX + 1;
+						if (!lp->addConstraint(3, &row[0], &colno[0], MILP::ConstraintType::LessThanEqual, 2))
+							return false;
+					}
+				}
+			}
+		}
+	}
+	//	for (const edge& f : edges) {
+	//		if (e==f) continue;
+	//		for (const edge& g : edges) {
+	//			if (e==g || f==g) continue;
+	//			for (const edge& h : edges) {
+	//				if (e==h || f==h || g==h) continue;
+
+	//				int i1, i2, i3;
+	//				crossingOrderMap_t::const_iterator it;
+	//				it = crossingOrderMap.find(crossingOrder(e, f, g));
+	//				if (it == crossingOrderMap.end()) continue;
+	//				i1 = it->second + countX + 1;
+	//				it = crossingOrderMap.find(crossingOrder(e, g, h));
+	//				if (it == crossingOrderMap.end()) continue;
+	//				i2 = it->second + countX + 1;
+	//				it = crossingOrderMap.find(crossingOrder(e, h, f));
+	//				if (it == crossingOrderMap.end()) continue;
+	//				i3 = it->second + countX + 1;
+
+	//				row[0] = 1; colno[0] = i1;
+	//				row[1] = 1; colno[1] = i2;
+	//				row[2] = 1; colno[2] = i3;
+	//				/*if (!lp->addConstraint(3, &row[0], &colno[0], MILP::ConstraintType::LessThanEqual, 2))
+	//					return false;*/
+	//			}
+	//		}
+	//	}
+	//}
+
+	if (!lp->setAddConstraintMode(false))
+		return false;
+
+	return true;
 }
 
 }
