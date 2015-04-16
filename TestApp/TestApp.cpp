@@ -14,6 +14,8 @@
 #include <OOCMCrossingMinimization.h>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
+#include "boost/iostreams/stream.hpp"
+#include "boost/iostreams/device/null.hpp"
 #include <ogdf_include.h>
 #include <ogdf\planarlayout\PlanarDrawLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
@@ -62,7 +64,7 @@ void OOCM_TestRealize2()
 	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
 	map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
 	vector<bool> assignment;
-	stringstream rs;
+	boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
 
 	//Make the K6 planar
 	Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
@@ -70,10 +72,9 @@ void OOCM_TestRealize2()
 	cm.createVariables(K6, crossings, crossingOrders);
 	assignment.resize(crossings.size() + crossingOrders.size());
 	fill (assignment.begin(), assignment.end(), false);
-	rs = stringstream();
 	crossingOrdersMap.clear();
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	Graph g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
+	Graph g = cm.realize(K6, crossings, crossingOrdersMap, assignment, nullOstream);
 	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K6 should not be planar", LINE_INFO());
 	//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 	int countOfOnes = 0;
@@ -88,14 +89,13 @@ void OOCM_TestRealize2()
 	}
 	//Assert::AreEqual(3, countOfOnes, L"Three crossings should be set", LINE_INFO());
 	//realize
-	rs = stringstream();
-	rs << "K6: " << endl;
+	cout << "K6: " << endl;
 	crossingOrdersMap.clear();
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
-	cout << rs.str();
+	g = cm.realize(K6, crossings, crossingOrdersMap, assignment, cout);
 	//Logger::WriteMessage(rs.str().c_str());
 	//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
+	cout << "K6 planarized? " << boost::boyer_myrvold_planarity_test(g) << endl;
 	Graph k6 = g;
 
 	//Make the K8 planar
@@ -150,10 +150,9 @@ void OOCM_TestRealize2()
 	cm.createVariables(K8, crossings, crossingOrders);
 	assignment.resize(crossings.size() + crossingOrders.size());
 	fill (assignment.begin(), assignment.end(), false);
-	rs = stringstream();
 	crossingOrdersMap.clear();
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
+	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, nullOstream);
 	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K8 should not be planar", LINE_INFO());
 
 	//set variables
@@ -178,14 +177,13 @@ void OOCM_TestRealize2()
 		assignment[index + crossings.size()] = true;
 		index++;
 	}
-	rs = stringstream();
-	rs << "K8: " << endl;
+	cout << "K8: " << endl;
 	crossingOrdersMap.clear();
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
-	cout << rs.str();
+	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, cout);
 	//Logger::WriteMessage(rs.str().c_str());
 	//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
+	cout << "K8 planarized? " << boost::boyer_myrvold_planarity_test(g) << endl;
 	Graph k8 = g;
 
 #ifdef SAVE_GRAPHS

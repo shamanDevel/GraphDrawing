@@ -6,7 +6,7 @@
 #include <vector>
 #include <utility>
 #include <tuple>
-#include <sstream>
+#include <ostream>
 
 namespace shaman {
 
@@ -40,7 +40,7 @@ public:
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
 	Graph realize(const Graph& originalG, vector<crossing>& crossings, map<crossingOrder, int>& crossingOrdersMap,
-		vector<bool> variableAssignment, stringstream& s);
+		vector<bool> variableAssignment, ostream& s);
 
 private:
 	template<class T>

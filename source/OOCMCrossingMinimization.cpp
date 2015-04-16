@@ -65,7 +65,7 @@ void OOCMCrossingMinimization::createCrossingOrdersMap(
 
 Graph OOCMCrossingMinimization::realize(
 	const Graph& originalG, vector<crossing>& crossings, map<crossingOrder, int>& crossingOrdersMap,
-	vector<bool> variableAssignment, stringstream& s)
+	vector<bool> variableAssignment, ostream& s)
 {
 	Graph G = originalG;
 	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), G);
@@ -102,21 +102,31 @@ Graph OOCMCrossingMinimization::realize(
 	}
 
 	//specify order
-	for (auto a : crossingMap) {
+	for (auto& a : crossingMap) {
 		edge e = a.first;
 		vector<edge>& ex = a.second;
 
 		if (ex.size() > 1) {
-			sort(ex.begin(), ex.end(), [=](const edge& f, const edge& g)
+			map<crossingOrder, bool> cache;
+			for (edge f : ex) {
+				for (edge g : ex) {
+					crossingOrder o = make_tuple(e, f, g);
+					map< crossingOrder, int >::const_iterator it = crossingOrdersMap.find(o);
+					if (it == crossingOrdersMap.end()) 
+						continue;
+					int index = it->second + crossings.size();
+					bool result = variableAssignment[index];
+					cache[o] = result;
+				}
+			}
+			s;
+			sort(ex.begin(), ex.end(), [=](const edge& f, const edge& g) -> bool
 			{
 				crossingOrder o = make_tuple(e, f, g);
-				map< crossingOrder, int >::const_iterator it = crossingOrdersMap.find(o);
-				if (it == crossingOrdersMap.end()) 
-					cerr << "Not found" << endl;
-				int index = it->second + crossings.size();
-				bool result = variableAssignment[index];
+				bool result = cache.find(o)->second;
 				return result;
 			});
+			s;
 		}
 
 	}
@@ -194,6 +204,7 @@ Graph OOCMCrossingMinimization::realize(
 					s << "(" << h.first << "," << h.second << ")";
 				s << "]";
 			}
+			reverse(fx2.begin(), fx2.end());
 			if (!fx1.empty()) {
 				crossingMap.emplace(minmax(f.first, node), fx1); 
 			}
