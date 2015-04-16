@@ -91,7 +91,9 @@ namespace UnitTests
 
 					//realize graph
 					stringstream s;
-					Graph g2 = cm.realize(g, crossings, crossingOrders, assignment, s);
+					map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
+					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+					Graph g2 = cm.realize(g, crossings, crossingOrdersMap, assignment, s);
 					int n2 = num_vertices(g2);
 					int m2 = num_edges(g2);
 
@@ -108,6 +110,7 @@ namespace UnitTests
 			OOCMCrossingMinimization cm(NULL);
 			vector<OOCMCrossingMinimization::crossing> crossings;
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
+			map<OOCMCrossingMinimization::crossingOrder, int> crossingOrdersMap;
 			vector<bool> assignment;
 			stringstream rs;
 
@@ -118,7 +121,9 @@ namespace UnitTests
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
 			rs = stringstream();
-			Graph g = cm.realize(K6, crossings, crossingOrders, assignment, rs);
+			crossingOrdersMap.clear();
+			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+			Graph g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
 			Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K6 should not be planar", LINE_INFO());
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
@@ -135,7 +140,9 @@ namespace UnitTests
 			//realize
 			rs = stringstream();
 			rs << "K6: " << endl;
-			g = cm.realize(K6, crossings, crossingOrders, assignment, rs);
+			crossingOrdersMap.clear();
+			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+			g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
 			Logger::WriteMessage(rs.str().c_str());
 			//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
@@ -193,7 +200,9 @@ namespace UnitTests
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
 			rs = stringstream();
-			g = cm.realize(K8, crossings, crossingOrders, assignment, rs);
+			crossingOrdersMap.clear();
+			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+			g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
 			Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
@@ -220,7 +229,9 @@ namespace UnitTests
 			}
 			rs = stringstream();
 			rs << "K8: " << endl;
-			g = cm.realize(K8, crossings, crossingOrders, assignment, rs);
+			crossingOrdersMap.clear();
+			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+			g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
 			Logger::WriteMessage(rs.str().c_str());
 			//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
 			Graph k8 = g;

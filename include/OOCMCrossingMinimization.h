@@ -33,14 +33,25 @@ public:
 	///	\brief	Creates the variables for the ILP formulation
 	void createVariables(const Graph& originalG, vector<crossing>& outCrossings, vector<crossingOrder>& outCrossingOrders);
 
+	void createCrossingOrdersMap(const vector<crossingOrder>& crossingOrders, map<crossingOrder, int>& outMap);
+
 	///	\brief	Realizes the graph
 	///			The first outCrossings.size() elements of variableAssignment contain the assignment of the variables
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
-	Graph realize(const Graph& originalG, vector<crossing>& crossings, vector<crossingOrder>& crossingOrders,
+	Graph realize(const Graph& originalG, vector<crossing>& crossings, map<crossingOrder, int>& crossingOrdersMap,
 		vector<bool> variableAssignment, stringstream& s);
 
 private:
+	template<class T>
+	inline
+	int indexOf(const vector<T>& vec, const T& t) {
+		for (int i=0; i<vec.size(); ++i) {
+			if (vec[i] == t) return i;
+		}
+		return -1;
+	}
+
 	MILP* lp;
 };
 
