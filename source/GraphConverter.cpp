@@ -37,7 +37,14 @@ void GraphConverter::convert(const Graph& g, ogdf::Graph& G, ogdf::GraphAttribut
 			}
 		} else {
 			//hidden node
-			GA.width(n) = GA.height(n) = settings.edgeWidth * 2;
+			//GA.width(n) = GA.height(n) = settings.edgeWidth * 2;
+			GA.width(n) = GA.height(n) = settings.nodeSize / 2;
+			if (settings.labelNodes) {
+				std::stringstream s;
+				s << data.variable;
+				ogdf::String os (s.str().c_str());
+				GA.labelNode(n) = os;
+			}
 		}
 	}
 	//add edges

@@ -37,7 +37,7 @@ int RandomInt(int min, int max)
 void TestMinimization() {
 	GraphGenerator gen;
 	MILP* milp = new MILP_lp_solve();
-	CrossingMinimization* cm = new SOCMCrossingMinimization(milp);
+	CrossingMinimization* cm = new OOCMCrossingMinimization(milp);
 	for (int n=5; n<20; ++n) {
 		//for (int i=0; i<5; ++i) {
 			cout << "n=" << n << endl;
@@ -56,177 +56,10 @@ void TestMinimization() {
 	}
 }
 
-void OOCM_TestRealize2()
-{
-	GraphGenerator gen;
-	OOCMCrossingMinimization cm(NULL);
-	vector<OOCMCrossingMinimization::crossing> crossings;
-	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
-	OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
-	vector<bool> assignment;
-	boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
-
-	//Make the K6 planar
-	Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
-	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(K6), L"K6 should not be planar", LINE_INFO());
-	cm.createVariables(K6, crossings, crossingOrders);
-	assignment.resize(crossings.size() + crossingOrders.size());
-	fill (assignment.begin(), assignment.end(), false);
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	Graph g = cm.realize(K6, crossings, crossingOrdersMap, assignment, nullOstream);
-	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K6 should not be planar", LINE_INFO());
-	//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
-	int countOfOnes = 0;
-	for (int i=0; i<crossings.size(); ++i) {
-		OOCMCrossingMinimization::crossing c = crossings[i];
-		if (c == make_pair( make_pair(0,1), make_pair(3,5) )
-			|| c == make_pair( make_pair(0,4), make_pair(2,3) )
-			|| c == make_pair( make_pair(1,2), make_pair(4,5) )) {
-				assignment[i] = true;
-				countOfOnes++;
-		}
-	}
-	//Assert::AreEqual(3, countOfOnes, L"Three crossings should be set", LINE_INFO());
-	//realize
-	cout << "K6: " << endl;
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K6, crossings, crossingOrdersMap, assignment, cout);
-	//Logger::WriteMessage(rs.str().c_str());
-	//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
-	cout << "K6 planarized? " << boost::boyer_myrvold_planarity_test(g) << endl;
-	Graph k6 = g;
-
-	//Make the K8 planar
-	static const int K8crossings[18][4] = {
-		{0,2,1,3},
-		{0,4,1,7},
-		{0,5,1,4},
-		{0,5,1,7},
-		{0,5,2,4},
-		{0,6,2,7},
-		{0,6,3,4},
-		{0,6,3,7},
-		{0,7,3,4},
-		{1,5,2,4},
-		{1,6,2,4},
-		{1,6,2,5},
-		{1,6,3,5},
-		{1,7,3,4},
-		{2,6,3,5},
-		{2,7,3,5},
-		{2,7,3,6},
-		{4,6,5,7}
-	};
-	static const int K8crossingOrders[24][6] = {
-		{0,5,1,7,1,4},
-		{0,5,1,7,2,4},
-		{0,5,1,4,2,4},
-		{0,6,3,4,3,7},
-		{0,6,3,4,2,7},
-		{0,6,3,7,2,7},
-		{1,6,2,4,2,5},
-		{1,6,2,4,3,5},
-		{1,6,2,5,3,5},
-		{1,7,0,5,0,4},
-		{1,7,0,5,3,4},
-		{1,7,0,4,3,4},
-		{2,4,1,6,1,5},
-		{2,4,1,6,0,5},
-		{2,4,1,5,0,5},
-		{2,7,3,5,3,6},
-		{2,7,3,5,0,6},
-		{2,7,3,6,0,6},
-		{3,4,0,6,0,7},
-		{3,4,0,6,1,7},
-		{3,4,0,7,1,7},
-		{3,5,2,7,2,6},
-		{3,5,2,7,1,6},
-		{3,5,2,6,1,6}
-	};
-	Graph K8 = *gen.createRandomGraph(8, 8*(8-1)/2);
-	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(K8), L"K8 should not be planar", LINE_INFO());
-	cm.createVariables(K8, crossings, crossingOrders);
-	assignment.resize(crossings.size() + crossingOrders.size());
-	fill (assignment.begin(), assignment.end(), false);
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, nullOstream);
-	//Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K8 should not be planar", LINE_INFO());
-
-	//set variables
-	int index = 0;
-	for (int i=0; i<18; ++i) {
-		OOCMCrossingMinimization::crossing c 
-			= make_pair(make_pair(K8crossings[i][0], K8crossings[i][1]),
-					    make_pair(K8crossings[i][2], K8crossings[i][3]));
-		for (; crossings[index] != c; ++index);
-		//Assert::IsTrue(crossings[index] == c);
-		assignment[index] = true;
-		index++;
-	}
-	for (int i=0; i<24; ++i) {
-		OOCMCrossingMinimization::crossingOrder o
-			= make_tuple(make_pair(K8crossingOrders[i][0], K8crossingOrders[i][1]),
-					        make_pair(K8crossingOrders[i][2], K8crossingOrders[i][3]),
-							make_pair(K8crossingOrders[i][4], K8crossingOrders[i][5]));
-		index = 0;
-		for (; crossingOrders[index] != o; ++index);
-		//Assert::IsTrue(crossingOrders[index] == o);
-		assignment[index + crossings.size()] = true;
-		index++;
-	}
-	cout << "K8: " << endl;
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	g = cm.realize(K8, crossings, crossingOrdersMap, assignment, cout);
-	//Logger::WriteMessage(rs.str().c_str());
-	//Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
-	cout << "K8 planarized? " << boost::boyer_myrvold_planarity_test(g) << endl;
-	Graph k8 = g;
-
-#ifdef SAVE_GRAPHS
-	TestAndSaveGraph(k6, "K6");
-	TestAndSaveGraph(k8, "K8");
-#endif
-
-	//Test if this assignment is also feasible in the lp-model
-	MILP* lp = new MILP_lp_solve();
-	lp->initialize(crossings.size() + crossingOrders.size());
-	cout << "LP initialized" << endl;
-	cm.setObjectiveFunction(crossings, lp);
-	cout << "Objective function set" << endl;
-	vector<OOCMCrossingMinimization::edge> edgeVector;
-	std::pair<edge_iterator, edge_iterator> edgeIter = edges(K8);
-	for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
-		OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
-		edgeVector.push_back(e);
-	}
-	cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp);
-	cout << "Linear Ordering Constraints added" << endl;
-	vector<MILP::real> row(1);
-	vector<int> colno(1);
-	row[0] = 1;
-	lp->setAddConstraintMode(true);
-	for (int i=0; i<assignment.size(); ++i) {
-		colno[0] = i+1;
-		lp->addConstraint(1, &row[0], &colno[0], MILP::ConstraintType::Equal, assignment[i] ? 1 : 0);
-	}
-	lp->setAddConstraintMode(false);
-	cout << "Solution constraints added" << endl;
-	MILP::real objective;
-	MILP::real* variables;
-	MILP::SolveResult solveResult = lp->solve(&objective, &variables);
-	cout << "Solved: " << solveResult << " objective: " << objective << endl;
-}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	//TestRealize2();
-	//TestLinearProgramming();
-	//TestMinimization();
-	OOCM_TestRealize2();
+	TestMinimization();
 	cin.get();
 	return 0;
 }

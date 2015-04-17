@@ -147,6 +147,16 @@ namespace UnitTests
 			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
 
+			//test if the variable entries in the node are correct
+			std::pair<vertex_iterator, vertex_iterator> nodeIter = vertices(g);
+			for(vertex_iterator it = nodeIter.first; it!=nodeIter.second; ++it) {
+				NodeData data = get(node_data_t(), g, *it);
+				if (data.type == NodeType::CROSSING) {
+					int variable = data.variable;
+					Assert::IsTrue(assignment[variable], L"named variable is not correct", LINE_INFO());
+				}
+			}
+
 			//Test if this assignment is also feasible in the lp-model
 			MILP* lp = new MILP_lp_solve();
 			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
@@ -284,6 +294,16 @@ namespace UnitTests
 			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
 			Graph k8 = g;
 
+			//test if the variable entries in the node are correct
+			std::pair<vertex_iterator, vertex_iterator> nodeIter = vertices(g);
+			for(vertex_iterator it = nodeIter.first; it!=nodeIter.second; ++it) {
+				NodeData data = get(node_data_t(), g, *it);
+				if (data.type == NodeType::CROSSING) {
+					int variable = data.variable;
+					Assert::IsTrue(assignment[variable], L"named variable is not correct", LINE_INFO());
+				}
+			}
+
 			//Test if this assignment is also feasible in the lp-model
 			MILP* lp = new MILP_lp_solve();
 			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
@@ -341,7 +361,7 @@ namespace UnitTests
 				| ogdf::GraphAttributes::nodeColor );
 			GraphConverter::Settings settings;
 			settings.labelNodes = true;
-			settings.nodeSize = 10.0;
+			settings.nodeSize = 20.0;
 			settings.edgeWidth = 1.0;
 			settings.nodeColor = "#AAAAAA";
 			GraphConverter::convert(g, G, GA, settings);

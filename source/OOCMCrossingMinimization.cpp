@@ -47,6 +47,10 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 	//setup lp model
 	if (!lp->initialize(crossings.size() + crossingOrders.size()))
 		return solve_result_t();
+	for (int i=1; i<=crossings.size() + crossingOrders.size(); ++i) {
+		if (!lp->setVariableType(i, MILP::VariableType::Binary))
+			return solve_result_t();
+	}
 	if (!setObjectiveFunction(crossings, lp))
 		return solve_result_t();
 	int crLower = crGLower(n, m);
@@ -58,22 +62,37 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 
 	while (true) 
 	{
+		cout << endl;
+
 		MILP::real* resultVariables;
 		MILP::real objective;
 		MILP::SolveResult result = lp->solve(&objective, &resultVariables);
 		cout << "Solved, result: " << (int) result << endl;
 		if (result != MILP::SolveResult::Optimal) {
-			lp->printDebug();
 			return solve_result_t();
 		}
 		cout << "objective: " << objective << endl;
-		cout << "variables:";
 		for (int i=0; i<variables.size(); ++i) {
 			variables[i] = resultVariables[i] >= 0.999;
-			cout << " " << resultVariables[i];
+		}
+		cout << "variables set to one:";
+		for (int i=0; i<crossings.size(); ++i) {
+			if (variables[i]) {
+				const crossing& c = crossings[i];
+				cout << " (" << c.first.first << "," << c.first.second << ")x("
+					<< c.second.first << "," << c.second.second << ")";
+			}
+		}
+		for (int i=0; i<crossingOrders.size(); ++i) {
+			if (variables[i + crossings.size()]) {
+				const crossingOrder& o = crossingOrders[i];
+				cout << " (" << get<0>(o).first << "," << get<0>(o).second << "),("
+					<< get<1>(o).first << "," << get<1>(o).second << "),("
+					<< get<2>(o).first << "," << get<2>(o).second << ")";
+			}
 		}
 		cout << endl;
-		for (int i=0; i<variables.size(); ++i) {
+		for (int i=0; i<crossings.size(); ++i) {
 			if (variables[i]) {
 				edge e = crossings[i].first;
 				edge f = crossings[i].second;
@@ -112,10 +131,13 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 			cout << "  count=" << kuratowski_edges.size();
 			cout << endl;
 
-			if (!addKuratowkiConstraints(crossings, crossingOrderMap, variables, kuratowski_edges, lp))
+			if (!addKuratowkiConstraints(edgeVector, crossings, crossingOrderMap, variables, kuratowski_edges, G, lp))
 				return solve_result_t();
 		}
 
+		//if (true) {
+		//	return solve_result_t();
+		//}
 	}
 
 }
@@ -197,30 +219,33 @@ Graph OOCMCrossingMinimization::realize(
 		//collect all crossings with this edge
 		vector< pair<edge, int> >& ex = crossingMap[e];
 		for (int j = 0; j<crossingsSize; ++j) {
-			if (variableAssignment[j] && crossings[j].second==e && indexOf(ex, crossings[j].first)==-1)
-				ex.push_back(crossings[j].first);
+			if (variableAssignment[j] && crossings[j].second==e 
+				&& indexOf(ex, pair<edge, int>(crossings[j].first, j))==-1)
+			{
+				ex.push_back(make_pair(crossings[j].first, j));
+			}
 		}
 	}
 
 	//specify order
 	for (auto& a : crossingMap) {
 		edge e = a.first;
-		vector<edge>& ex = a.second;
+		vector< pair<edge, int> >& ex = a.second;
 
 		if (ex.size() > 1) {
 			map<crossingOrder, bool> cache;
-			for (edge f : ex) {
-				for (edge g : ex) {
-					crossingOrder o = make_tuple(e, f, g);
+			for (pair<edge, int> f : ex) {
+				for (pair<edge, int> g : ex) {
+					crossingOrder o = make_tuple(e, f.first, g.first);
 					//map< crossingOrder, int >::const_iterator it = crossingOrdersMap.find(o);
 					//if (it == crossingOrdersMap.end()) 
 					//	continue;
 					//int index = it->second + crossings.size();
 					const auto& it1 = crossingOrdersMap.find(e);
 					if (it1 == crossingOrdersMap.end()) continue;
-					const auto& it2 = it1->second.find(f);
+					const auto& it2 = it1->second.find(f.first);
 					if (it2 == it1->second.end()) continue;
-					const auto& it3 = it2->second.find(g);
+					const auto& it3 = it2->second.find(g.first);
 					if (it3 == it2->second.end()) continue;
 					int index = it3->second + crossings.size();
 					bool result = variableAssignment[index];
@@ -228,9 +253,9 @@ Graph OOCMCrossingMinimization::realize(
 				}
 			}
 			s;
-			sort(ex.begin(), ex.end(), [=](const edge& f, const edge& g) -> bool
+			sort(ex.begin(), ex.end(), [=](const pair<edge, int>& f, const pair<edge, int>& g) -> bool
 			{
-				crossingOrder o = make_tuple(e, f, g);
+				crossingOrder o = make_tuple(e, f.first, g.first);
 				map<crossingOrder, bool>::const_iterator it = cache.find(o);
 				if (it == cache.end())
 					return false;
@@ -244,17 +269,17 @@ Graph OOCMCrossingMinimization::realize(
 
 	for (const auto& a : crossingMap) {
 		edge e = a.first;
-		vector<edge> ex = a.second;
+		vector< pair<edge, int> > ex = a.second;
 		s << "edge (" << e.first << "," << e.second << ") crosses with";
-		for (edge f : ex)
-			s << " (" << f.first << "," << f.second << ")";
+		for (pair<edge, int> f : ex)
+			s << " (" << f.first.first << "," << f.first.second << ")->" << f.second;
 		s << endl;
 	}
 
 	while (!crossingMap.empty())
 	{
 		edge e = crossingMap.begin()->first;
-		vector<edge> ex = crossingMap.begin()->second;
+		vector< pair<edge, int> > ex = crossingMap.begin()->second;
 		int s1 = crossingMap.size();
 		crossingMap.erase(e);
 		assert(crossingMap.size() == s1-1);
@@ -266,74 +291,80 @@ Graph OOCMCrossingMinimization::realize(
 
 		//split edges
 		int u = e.first;
-		for (edge f : ex) {
-			s << " (" << f.first << "," << f.second << ")";
+		for (pair<edge, int> f : ex) {
+			s << " (" << f.first.first << "," << f.first.second << ")->" << f.second;
 			//introduce crossing node
 			int node = add_vertex(G);
 			s << " -> node " << node;
 			NodeData data;
 			data.type = NodeType::CROSSING;
-			data.variable = -1;
+			data.variable = f.second;
 			nodeProps[node] = data;
 			//check where f crosses e
-			vector<edge> fx = crossingMap[f];
-			crossingMap.erase(f);
-			int index = indexOf(fx, e);
+			vector< pair<edge, int> > fx = crossingMap[f.first];
+			crossingMap.erase(f.first);
+			int index = indexOf(fx, make_pair(e, f.second));
 			//assert(index >= 0);
 			if (index < 0) {
 				s << "ERROR: edge (" << e.first << "," << e.second << ")"
-					<< " not found in edge list of (" << f.first << "," << f.second << "): ";
-				for (edge h : fx) {
-					s << " (" << h.first << "," << h.second << ")";
+					<< " not found in edge list of (" << f.first.first << "," << f.first.second << "): ";
+				for (pair<edge, int> h : fx) {
+					s << " (" << h.first.first << "," << h.first.second << ")";
 				}
 				s << endl;
 				return G;
 			}
 			//split fx
-			vector<edge> fx1, fx2;
+			vector<pair<edge, int>> fx1, fx2;
 			s << " fx1:";
 			for (int i=0; i<index; ++i) {
 				fx1.push_back(fx[i]);
-				s << " (" << fx[i].first << "," << fx[i].second << ")";
-				assert (crossingMap.count(fx[i]) > 0);
-				vector<edge>& fxx = crossingMap[fx[i]];
-				replace(fxx.begin(), fxx.end(), f, (edge) minmax(f.first, node));
+				s << " (" << fx[i].first.first << "," << fx[i].first.second << ")";
+				assert (crossingMap.count(fx[i].first) > 0);
+				vector<pair<edge, int>>& fxx = crossingMap[fx[i].first];
+				//replace(fxx.begin(), fxx.end(), f, make_pair((edge) minmax(f.first.first, node), f.second));
+				for (pair<edge, int>& h : fxx) {
+					if (h.first == f.first) h.first = minmax(f.first.first, node);
+				}
 				s << "[fxx:";
-				for (edge h : crossingMap[fx[i]])
-					s << "(" << h.first << "," << h.second << ")";
+				for (pair<edge, int> h : crossingMap[fx[i].first])
+					s << "(" << h.first.first << "," << h.first.second << ")";
 				s << "]";
 			}
 			s << " fx2:";
 			for (int i=index+1; i<fx.size(); ++i) {
 				fx2.push_back(fx[i]);
-				s << " (" << fx[i].first << "," << fx[i].second << ")";
-				assert (crossingMap.count(fx[i]) > 0);
-				vector<edge>& fxx = crossingMap[fx[i]];
-				replace(fxx.begin(), fxx.end(), f, (edge) minmax(f.second, node));
+				s << " (" << fx[i].first.first << "," << fx[i].first.second << ")";
+				assert (crossingMap.count(fx[i].first) > 0);
+				vector<pair<edge, int>>& fxx = crossingMap[fx[i].first];
+				//replace(fxx.begin(), fxx.end(), f, make_pair((edge) minmax(f.first.second, node), f.second));
+				for (pair<edge, int>& h : fxx) {
+					if (h.first == f.first) h.first = minmax(f.first.second, node);
+				}
 				s << "[fxx:";
-				for (edge h : crossingMap[fx[i]])
-					s << "(" << h.first << "," << h.second << ")";
+				for (pair<edge, int> h : crossingMap[fx[i].first])
+					s << "(" << h.first.first << "," << h.first.second << ")";
 				s << "]";
 			}
 			reverse(fx2.begin(), fx2.end());
 			if (!fx1.empty()) {
-				crossingMap.emplace(minmax(f.first, node), fx1); 
+				crossingMap.emplace(minmax(f.first.first, node), fx1); 
 			}
 			if (!fx2.empty()) {
-				crossingMap.emplace(minmax(f.second, node), fx2);
+				crossingMap.emplace(minmax(f.first.second, node), fx2);
 			}
 			//remove old and add new edges
 			int m1 = num_edges(G);
 			remove_edge(u, e.second, G);
-			remove_edge(f.first, f.second, G);
+			remove_edge(f.first.first, f.first.second, G);
 			add_edge(u, node, G);
 			add_edge(e.second, node, G);
-			add_edge(f.first, node, G);
-			add_edge(f.second, node, G);
+			add_edge(f.first.first, node, G);
+			add_edge(f.first.second, node, G);
 			s << " create (" << u << "," << node << "), ("
 				<< e.second << "," << node << "), ("
-				<< f.first << "," << node << "), ("
-				<< f.second << "," << node << ")";
+				<< f.first.first << "," << node << "), ("
+				<< f.first.second << "," << node << ")";
 			int m2 = num_edges(G);
 			if (m1+2 != m2) {
 				s << "unable to remove all edges" << endl;
@@ -490,15 +521,322 @@ bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 	return true;
 }
 
-bool OOCMCrossingMinimization::addKuratowkiConstraints(
+bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges,
 	const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
-	const vector<bool>& variableAssignment, kuratowski_edges_t& kuratowski_edges, MILP* lp)
+	const vector<bool>& variableAssignment, kuratowski_edges_t& kuratowski_edges, 
+	const Graph& realizedGraph, MILP* lp)
 {
+	int crossingCount = crossings.size();
+
 	simplifyKuratowskiSubgraph(kuratowski_edges);
 
-	//TODO
+	//create a mapping from the variable index to the crossings (0-based because the assignment is 0-based)
+	map<int, crossing> crossingVariableMap;
+	for (unsigned int i=0; i<crossingCount; ++i) {
+		crossingVariableMap[i] = crossings[i];
+	}
 
-	return true;
+	//collect set of all nodes in the kuratowski subdivision
+	map<int, int> kuratowskiNodes;
+	for (edge_descriptor e : kuratowski_edges) {
+		kuratowskiNodes[e.m_source]++;
+		kuratowskiNodes[e.m_target]++;
+	}
+	//maps the nodes created by the path subdivisions to their end-nodes (called kuratowski nodes)
+	map<int, pair<int, int>> kuratowskiPathToNodes;
+	for (pair<int, int> p : kuratowskiNodes) {
+		if (p.second != 2) continue; //a subdivision node always has degree two
+		//follow the path in the edge list until a node with deg(n)>2 is reached
+		const int n = p.first;
+		int u = -1, v = -1;
+		for (edge_descriptor e : kuratowski_edges) {
+			int t;
+			if (e.m_source == n)
+				t = e.m_target;
+			else if (e.m_target == n)
+				t = e.m_source;
+			else
+				continue;
+			int ot = n;
+			while (kuratowskiNodes.at(t) == 2) {
+				int t2 = -1;
+				for (edge_descriptor e2 : kuratowski_edges) {
+					if (e2.m_source == t && e2.m_target != ot)
+						t2 = e2.m_target;
+					else if (e2.m_target == t && e2.m_source != ot)
+						t2 = e2.m_source;
+					else
+						continue;
+					break;
+				}
+				assert (t2 >= 0);
+				//next node
+				ot = t;
+				t = t2;
+			}
+			if (u == -1)
+				u = t;
+			else {
+				v = t;
+				break;
+			}
+		}
+		assert (u>=0);
+		assert (v>=0);
+		kuratowskiPathToNodes[n] = minmax(u, v);
+	}
+
+	cout << "Kuratowski-Nodes:";
+	for (pair<int, int> p : kuratowskiNodes) {
+		cout << "  " << p.second << "x" << p.first;
+	}
+	cout << endl;
+	cout << "  Subdivision-Nodes go to:";
+	for (pair<int, pair<int, int> > p : kuratowskiPathToNodes) {
+		cout << "  " << p.first << "->{" << p.second.first << "," << p.second.second << "}";
+	}
+	cout << endl;
+
+	//create Zk, the set of all induced crossings whose dummy nodes are part of the kuratowski subdivision
+	set<crossing> Zk;
+	for (pair<int, int> p : kuratowskiNodes) {
+		int node = p.first;
+		NodeData data = get(node_data_t(), realizedGraph, node);
+		if (data.type == NodeType::CROSSING) {
+			int variable = data.variable;
+			Zk.insert(crossingVariableMap.at(variable));
+		}
+	}
+	cout << "Zk:";
+	for (const crossing& c : Zk) {
+		cout << " (" << c.first.first << "," << c.first.second << ")x("
+			<< c.second.first << "," << c.second.second << ")";
+	}
+	cout << endl;
+
+	//create Yk
+	set<crossingOrder> Yk;
+	for (const crossing& c1 : Zk) {
+		for (const crossing& c2 : Zk) {
+			edge e,f,g;
+			if (c1.first == c2.first) {
+				e = c1.first; f = c1.second; g = c2.second;
+			} else if (c1.first == c2.second) {
+				e = c1.first; f = c1.second; g = c2.first;
+			} else if (c1.second == c2.first) {
+				e = c1.second; f = c1.first; g = c2.second;
+			} else if (c1.second == c2.second) {
+				e = c1.second; f = c1.first; g = c2.first;
+			} else {
+				continue;
+			}
+			int y_efg = getCrossingOrderVariable(crossingOrderMap, e, f, g, -1);
+			if (y_efg == -1) continue;
+			if (!variableAssignment[y_efg + crossingCount]) continue; //y_e,f,g does not exists or is false
+
+			//check if there is no other edge h in between
+			bool existsH = false;
+			for (const crossing& c3 : Zk) {
+				edge h;
+				if (c3.first == e) {
+					h = c3.second;
+				} else if (c3.second == e) {
+					h = c3.first;
+				} else {
+					continue;
+				}
+				if (h==f || h==g) continue;
+				int y_efh = getCrossingOrderVariable(crossingOrderMap, e, f, h, -1);
+				if (y_efh == -1) continue;
+				int y_ehg = getCrossingOrderVariable(crossingOrderMap, e, h, g, -1);
+				if (y_ehg == -1) continue;
+				if (variableAssignment[y_efh + crossingCount] && variableAssignment[y_ehg + crossingCount]) {
+					existsH = true; //an edge h found that crosses between f and g
+					break;
+				}
+			}
+			if (existsH) continue;
+
+			//triple found
+			Yk.insert(crossingOrder(e, f, g));
+		}
+	}
+	cout << "Yk:";
+	for (const crossingOrder& o : Yk) {
+		cout << " (" << get<0>(o).first << "," <<get<0>(o).second << "),("
+			<< get<1>(o).first << "," << get<1>(o).second << "),("
+			<< get<2>(o).first << "," << get<2>(o).second << ")";
+	}
+	cout << endl;
+
+	//Create Xk
+	set<crossing> Xk;
+	for (const crossing& c : Zk) {
+		const edge& e = c.first;
+		const edge& f = c.second;
+		for (const edge& g : edges) {
+			set<crossingOrder> s;
+			s.insert(crossingOrder(e, f, g));
+			s.insert(crossingOrder(e, g, f));
+			s.insert(crossingOrder(f, e, g));
+			s.insert(crossingOrder(f, g, e));
+			if (is_disjoint(s, Yk)) {
+				Xk.insert(c);
+			}
+		}
+	}
+	cout << "Xk:";
+	for (const crossing& c : Xk) {
+		cout << " (" << c.first.first << "," << c.first.second << ")x("
+			<< c.second.first << "," << c.second.second << ")";
+	}
+	cout << endl;
+
+	//Create CrPairs(K)
+	set<crossing> CrPairs;
+	set<edge> kuratowskiEdgesInG; //the kuratowski edges in the original graph
+	for (pair<int, int> p : kuratowskiNodes) {
+		int n = p.first;
+		NodeData data = get(node_data_t(), realizedGraph, n);
+		if (data.type == NodeType::CROSSING) continue;
+		//it is a node in the original graph, no walk along all outgoing edges until another original node is found
+		vector<int> targetNodes;
+		set<int> visitedNodes;
+		visitedNodes.insert(n);
+		findNextNormalNodes(kuratowski_edges, n, targetNodes, visitedNodes, realizedGraph);
+		//add found targets
+		for (int v : targetNodes)
+			kuratowskiEdgesInG.insert(minmax(n, v));
+	}
+	cout << "Paths in K that are edges in G:";
+	for (const edge& e : kuratowskiEdgesInG) {
+		cout << " (" << e.first << "," << e.second << ")";
+	}
+	cout << endl;
+	//now loop over all pairs of these edges, find non-adjacent ones
+	for (const edge& e : kuratowskiEdgesInG) {
+		int u1 = e.first;
+		int v1 = e.second;
+		set<int> s1;
+		if (kuratowskiPathToNodes.count(u1)>0) {
+			//subdivision-node, replace it
+			pair<int, int> p = kuratowskiPathToNodes.at(u1);
+			s1.insert(p.first); s1.insert(p.second);
+		} else {
+			s1.insert(u1);
+		}
+		if (kuratowskiPathToNodes.count(v1)>0) {
+			//subdivision-node, replace it
+			pair<int, int> p = kuratowskiPathToNodes.at(v1);
+			s1.insert(p.first); s1.insert(p.second);
+		} else {
+			s1.insert(v1);
+		}
+
+		for (const edge& f : kuratowskiEdgesInG) {
+			int u2 = f.first;
+			int v2 = f.second;
+			set<int> s2;
+			if (kuratowskiPathToNodes.count(u2)>0) {
+				//subdivision-node, replace it
+				pair<int, int> p = kuratowskiPathToNodes.at(u2);
+				s2.insert(p.first); s1.insert(p.second);
+			} else {
+				s2.insert(u2);
+			}
+			if (kuratowskiPathToNodes.count(v2)>0) {
+				//subdivision-node, replace it
+				pair<int, int> p = kuratowskiPathToNodes.at(v2);
+				s2.insert(p.first); s2.insert(p.second);
+			} else {
+				s2.insert(v2);
+			}
+
+			if (is_disjoint(s1, s2)) {
+				//add this crossing
+				CrPairs.insert(minmax(e, f));
+			}
+		}
+	}
+	cout << "CrPairs:";
+	for (const crossing& c : CrPairs) {
+		cout << " (" << c.first.first << "," << c.first.second << ")x("
+			<< c.second.first << "," << c.second.second << ")";
+	}
+	cout << endl;
+
+	//now setup the equation
+	vector<MILP::real> row;
+	vector<int> colno;
+	for (const crossing& c : CrPairs) {
+		int index = indexOf(crossings, c); //TODO: binary search
+		if (index >= 0) {
+			row.push_back(1);
+			colno.push_back(index + 1);
+		}
+	}
+	for (const crossing& c : Xk) {
+		int index = indexOf(crossings, c); //TODO: binary search
+		assert (index >= 0);
+		row.push_back(-1);
+		colno.push_back(index + 1);
+	}
+	for (const crossingOrder& o : Yk) {
+		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
+		row.push_back(-1);
+		colno.push_back(index + crossingCount + 1);
+	}
+	int rhs = 1 - Xk.size() - Yk.size();
+	cout << "new constraint:" << endl;
+	for (int i=0; i<colno.size(); ++i) {
+		if (row[i] > 0)
+			cout << " + ";
+		else
+			cout << " - ";
+		if (colno[i] <= crossingCount) {
+			const crossing& c = crossings[colno[i]-1];
+			cout << "x(" << c.first.first << "," << c.first.second << ")x("
+				<< c.second.first << "," << c.second.second << ")";
+		} else {
+			for (const crossingOrder o : Yk) {
+				int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
+				if (index == colno[i] - 1 - crossingCount) {
+					cout << "y(" << get<0>(o).first << "," <<get<0>(o).second << "),("
+						<< get<1>(o).first << "," << get<1>(o).second << "),("
+						<< get<2>(o).first << "," << get<2>(o).second << ")";
+					break;
+				}
+			}
+		}
+	}
+	cout << " >= " << rhs << endl;
+
+	return lp->addConstraint(colno.size(), &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, rhs);
+}
+
+void OOCMCrossingMinimization::findNextNormalNodes(
+	const kuratowski_edges_t& kuratowski_edges, int startNode, vector<int>& targetNodes, 
+	set<int>& visitedNodes, const Graph& realizedGraph)
+{
+	for (const auto& e : kuratowski_edges) {
+		int v;
+		if (e.m_source == startNode)
+			v = e.m_target;
+		else if (e.m_target == startNode)
+			v = e.m_source;
+		else
+			continue;
+		if (visitedNodes.count(v) > 0) continue; //already visited
+		visitedNodes.insert(v);
+		NodeData data = get(node_data_t(), realizedGraph, v);
+		if (data.type != NodeType::CROSSING) {
+			//we found one
+			targetNodes.push_back(v);
+		} else {
+			//go on
+			findNextNormalNodes(kuratowski_edges, v, targetNodes, visitedNodes, realizedGraph);
+		}
+	}
 }
 
 void OOCMCrossingMinimization::simplifyKuratowskiSubgraph(
