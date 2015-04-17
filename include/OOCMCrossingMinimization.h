@@ -20,7 +20,7 @@ public:
 	OOCMCrossingMinimization(MILP* lp);
 	virtual ~OOCMCrossingMinimization(void);
 
-	virtual boost::optional< pair<Graph, unsigned int> > solve(const Graph& originalGraph);
+	virtual solve_result_t solve(const Graph& originalGraph);
 
 public: //only for unit tests
 
@@ -61,13 +61,19 @@ public: //only for unit tests
 	///			The first outCrossings.size() elements of variableAssignment contain the assignment of the variables
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
-	Graph realize(const Graph& originalG, vector<crossing>& crossings, crossingOrderMap_t& crossingOrderMap,
+	Graph realize(const Graph& originalG, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
 		const vector<bool>& variableAssignment, ostream& s);
 
 	bool setObjectiveFunction(const vector<crossing>& crossings, MILP* lp);
 
+	bool addCrossingNumberConstraints(const vector<crossing>& crossings, int crLower, int crUpper, MILP* lp);
+
 	bool addLinearOrderingConstraints(const vector<edge>& edges, const vector<crossing>& crossings,
 		const crossingOrderMap_t& crossingOrderMap, MILP* lp);
+
+	typedef vector< edge_descriptor > kuratowski_edges_t;
+	bool addKuratowkiConstraints(const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
+		const vector<bool>& variableAssignment, kuratowski_edges_t& kuratowski_edges, MILP* lp);
 
 private:
 	template<class T>
@@ -78,6 +84,8 @@ private:
 		}
 		return -1;
 	}
+
+	void simplifyKuratowskiSubgraph(kuratowski_edges_t& kuratowski_edges);
 
 	MILP* lp;
 };

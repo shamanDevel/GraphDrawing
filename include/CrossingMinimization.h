@@ -11,6 +11,8 @@ class CrossingMinimization
 public:
 	virtual ~CrossingMinimization() {}
 
+	typedef boost::optional< std::pair<Graph, unsigned int> > solve_result_t;
+
 	///	\brief	Solves the crossing problem to optimum.
 	///			Input: the original graph, simple and connected
 	///			Output: The optional contains the graph with inserted crossing nodes and is now planar and the crossing number.
@@ -18,7 +20,7 @@ public:
 	///
 	///	\param	originalG	The original graph
 	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
-	virtual boost::optional< std::pair<Graph, unsigned int> > solve(const Graph& originalGraph) = 0;
+	virtual solve_result_t solve(const Graph& originalGraph) = 0;
 
 	// Known bounds for the crossing number
 

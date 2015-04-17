@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include <OOCMCrossingMinimization.h>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
+#include "boost/iostreams/stream.hpp"
+#include "boost/iostreams/device/null.hpp"
 #include <algorithm>
 #include <limits>
 
@@ -18,9 +20,104 @@ OOCMCrossingMinimization::~OOCMCrossingMinimization(void)
 {
 }
 
-boost::optional< pair<Graph, unsigned int> > OOCMCrossingMinimization::solve(const Graph& originalGraph)
+OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const Graph& originalGraph)
 {
-	return boost::optional< pair<Graph, unsigned int> >();
+	//pre-check for planarity
+	if (boost::boyer_myrvold_planarity_test(originalGraph)) {
+		return solve_result_t(make_pair(originalGraph, 0));
+	}
+	int n = num_vertices(originalGraph);
+	int m = num_edges(originalGraph);
+	boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
+
+	//create variables
+	vector<edge> edgeVector;
+	std::pair<edge_iterator, edge_iterator> edgeIter = edges(originalGraph);
+	for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
+		edge e = minmax(it->m_source, it->m_target);
+		edgeVector.push_back(e);
+	}
+	vector<crossing> crossings;
+	vector<crossingOrder> crossingOrders;
+	crossingOrderMap_t crossingOrderMap;
+	createVariables(originalGraph, crossings, crossingOrders);
+	createCrossingOrdersMap(crossingOrders, crossingOrderMap);
+	vector<bool> variables (crossings.size() + crossingOrders.size());
+
+	//setup lp model
+	if (!lp->initialize(crossings.size() + crossingOrders.size()))
+		return solve_result_t();
+	if (!setObjectiveFunction(crossings, lp))
+		return solve_result_t();
+	int crLower = crGLower(n, m);
+	int crUpper = crKnUpper(n);
+	if (!addCrossingNumberConstraints(crossings, crLower, crUpper, lp))
+		return solve_result_t();
+	if (!addLinearOrderingConstraints(edgeVector, crossings, crossingOrderMap, lp))
+		return solve_result_t();
+
+	while (true) 
+	{
+		MILP::real* resultVariables;
+		MILP::real objective;
+		MILP::SolveResult result = lp->solve(&objective, &resultVariables);
+		cout << "Solved, result: " << (int) result << endl;
+		if (result != MILP::SolveResult::Optimal) {
+			lp->printDebug();
+			return solve_result_t();
+		}
+		cout << "objective: " << objective << endl;
+		cout << "variables:";
+		for (int i=0; i<variables.size(); ++i) {
+			variables[i] = resultVariables[i] >= 0.999;
+			cout << " " << resultVariables[i];
+		}
+		cout << endl;
+		for (int i=0; i<variables.size(); ++i) {
+			if (variables[i]) {
+				edge e = crossings[i].first;
+				edge f = crossings[i].second;
+				cout << "introduce crossing between (" << e.first << "," << e.second
+				<< ") and (" << f.first << "," << f.second << ")" << endl;
+			}
+		}
+
+		//realize graph
+		Graph G = realize(originalGraph, crossings, crossingOrderMap, variables, nullOstream);
+
+		// Initialize the interior edge index
+		boost::property_map<Graph, boost::edge_index_t>::type e_index = get(boost::edge_index, G);
+		boost::graph_traits<Graph>::edges_size_type edge_count = 0;
+		boost::graph_traits<Graph>::edge_iterator ei, ei_end;
+		for(boost::tie(ei, ei_end) = boost::edges(G); ei != ei_end; ++ei) {
+			put(e_index, *ei, edge_count);
+			edge_count++;
+		}
+		//check if the graph is now planar
+		typedef vector< edge_descriptor > kuratowski_edges_t;
+		kuratowski_edges_t kuratowski_edges;
+		if (boost::boyer_myrvold_planarity_test(
+			boost::boyer_myrvold_params::graph = G,
+			boost::boyer_myrvold_params::kuratowski_subgraph = back_inserter(kuratowski_edges))) 
+		{
+			//graph is planar
+			return solve_result_t(make_pair(G, (unsigned int) objective));
+		}
+		else
+		{
+			cout << "Kuratowki-Subgraph:";
+			for (auto e : kuratowski_edges) {
+				cout << " (" << e.m_source << "," << e.m_target << ")" ;
+			}
+			cout << "  count=" << kuratowski_edges.size();
+			cout << endl;
+
+			if (!addKuratowkiConstraints(crossings, crossingOrderMap, variables, kuratowski_edges, lp))
+				return solve_result_t();
+		}
+
+	}
+
 }
 
 void OOCMCrossingMinimization::createVariables(
@@ -67,7 +164,7 @@ void OOCMCrossingMinimization::createCrossingOrdersMap(
 }
 
 Graph OOCMCrossingMinimization::realize(
-	const Graph& originalG, vector<crossing>& crossings, crossingOrderMap_t& crossingOrdersMap,
+	const Graph& originalG, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrdersMap,
 	const vector<bool>& variableAssignment, ostream& s)
 {
 	Graph G = originalG;
@@ -75,7 +172,8 @@ Graph OOCMCrossingMinimization::realize(
 	
 	int crossingsSize = crossings.size();
 	int io = 0;
-	map< edge, vector<edge> > crossingMap;
+	//maps the source edges to the crossing edges with the inducing variable
+	map< edge, vector< pair<edge, int> > > crossingMap;
 	//Improve performance of the crossingMap creation
 	for (int i=0; i<crossingsSize; ++i) {
 		if (!variableAssignment[i]) continue;
@@ -83,11 +181,11 @@ Graph OOCMCrossingMinimization::realize(
 		edge e = crossings[i].first;
 
 		//collect all crossings with this edge
-		vector<edge>& ex = crossingMap[e];
+		vector< pair<edge, int> >& ex = crossingMap[e];
 		int j = i;
 		for (; j<crossingsSize && crossings[j].first==e; ++j) {
 			if (variableAssignment[j])
-				ex.push_back(crossings[j].second);
+				ex.push_back(make_pair(crossings[j].second, j));
 		}
 		i = j;
 	}
@@ -97,7 +195,7 @@ Graph OOCMCrossingMinimization::realize(
 		edge e = crossings[i].second;
 
 		//collect all crossings with this edge
-		vector<edge>& ex = crossingMap[e];
+		vector< pair<edge, int> >& ex = crossingMap[e];
 		for (int j = 0; j<crossingsSize; ++j) {
 			if (variableAssignment[j] && crossings[j].second==e && indexOf(ex, crossings[j].first)==-1)
 				ex.push_back(crossings[j].first);
@@ -144,7 +242,7 @@ Graph OOCMCrossingMinimization::realize(
 
 	}
 
-	for (auto a : crossingMap) {
+	for (const auto& a : crossingMap) {
 		edge e = a.first;
 		vector<edge> ex = a.second;
 		s << "edge (" << e.first << "," << e.second << ") crosses with";
@@ -261,9 +359,26 @@ bool OOCMCrossingMinimization::setObjectiveFunction(const vector<crossing>& cros
 	return result;
 }
 
+bool OOCMCrossingMinimization::addCrossingNumberConstraints(
+	const vector<crossing>& crossings, int crLower, int crUpper, MILP* lp)
+{
+	int count = crossings.size();
+	vector<MILP::real> row (count);
+	vector<int> colno (count);
+	for (int i=0; i<count; ++i) {
+		row[i] = 1;
+		colno[i] = i+1;
+	}
+	return lp->addConstraint(count, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, crLower)
+		&& lp->addConstraint(count, &row[0], &colno[0], MILP::ConstraintType::LessThanEqual, crUpper);
+}
+
 bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 	const vector<edge>& edges, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap, MILP* lp)
 {
+	//This method is very slow (~15sec for the K8)
+	//Improve it
+
 	int countX = crossings.size();
 	int countY = crossingOrderMap.size();
 	
@@ -373,6 +488,58 @@ bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 		return false;
 
 	return true;
+}
+
+bool OOCMCrossingMinimization::addKuratowkiConstraints(
+	const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
+	const vector<bool>& variableAssignment, kuratowski_edges_t& kuratowski_edges, MILP* lp)
+{
+	simplifyKuratowskiSubgraph(kuratowski_edges);
+
+	//TODO
+
+	return true;
+}
+
+void OOCMCrossingMinimization::simplifyKuratowskiSubgraph(
+	kuratowski_edges_t& kuratowski_edges)
+{
+	int size = kuratowski_edges.size();
+	//removes all redundant edges from the kuratowski subgraph
+	unordered_map<int, int> nodeOccurence;
+	//add node occurence
+	for (auto e : kuratowski_edges) {
+		nodeOccurence[e.m_source]++;
+		nodeOccurence[e.m_target]++;
+	}
+	//loop as long as nodes with an occurence of 1 are there
+	while(true)
+	{
+		bool found = false;
+		for(unordered_map<int, int>::value_type entry : nodeOccurence) {
+			if (entry.second == 1) {
+				//remove the edge going out from this node
+				remove_if(kuratowski_edges.begin(), kuratowski_edges.end(),
+					[=](boost::graph_traits<Graph>::edge_descriptor e) mutable -> bool {
+						if (e.m_source == entry.first) {
+							nodeOccurence[e.m_target]--;
+							return true;
+						} else if (e.m_target == entry.first) {
+							nodeOccurence[e.m_source]--;
+							return true;
+						} else {
+							return false;
+						}
+				});
+				nodeOccurence.erase(entry.first);
+				size--;
+				found = true;
+				break;
+			}
+		}
+		if (!found) break;
+	}
+	kuratowski_edges.resize(size);
 }
 
 }
