@@ -38,7 +38,7 @@ void TestMinimization() {
 	GraphGenerator gen;
 	MILP* milp = new MILP_lp_solve();
 	CrossingMinimization* cm = new OOCMCrossingMinimization(milp);
-	for (int n=5; n<20; ++n) {
+	for (int n=6; n<20; ++n) {
 		//for (int i=0; i<5; ++i) {
 			cout << "n=" << n << endl;
 			Graph g = *gen.createRandomGraph(n, max(n*(n-1)/2, n-1));

@@ -47,7 +47,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 	//setup lp model
 	if (!lp->initialize(crossings.size() + crossingOrders.size()))
 		return solve_result_t();
-	for (int i=1; i<=crossings.size() + crossingOrders.size(); ++i) {
+	for (unsigned int i=1; i<=crossings.size() + crossingOrders.size(); ++i) {
 		if (!lp->setVariableType(i, MILP::VariableType::Binary))
 			return solve_result_t();
 	}
@@ -60,6 +60,8 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 	if (!addLinearOrderingConstraints(edgeVector, crossings, crossingOrderMap, lp))
 		return solve_result_t();
 
+	//Main loop
+	vector<bool> oldVariables;
 	while (true) 
 	{
 		cout << endl;
@@ -72,18 +74,18 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 			return solve_result_t();
 		}
 		cout << "objective: " << objective << endl;
-		for (int i=0; i<variables.size(); ++i) {
+		for (unsigned int i=0; i<variables.size(); ++i) {
 			variables[i] = resultVariables[i] >= 0.999;
 		}
 		cout << "variables set to one:";
-		for (int i=0; i<crossings.size(); ++i) {
+		for (unsigned int i=0; i<crossings.size(); ++i) {
 			if (variables[i]) {
 				const crossing& c = crossings[i];
 				cout << " (" << c.first.first << "," << c.first.second << ")x("
 					<< c.second.first << "," << c.second.second << ")";
 			}
 		}
-		for (int i=0; i<crossingOrders.size(); ++i) {
+		for (unsigned int i=0; i<crossingOrders.size(); ++i) {
 			if (variables[i + crossings.size()]) {
 				const crossingOrder& o = crossingOrders[i];
 				cout << " (" << get<0>(o).first << "," << get<0>(o).second << "),("
@@ -92,7 +94,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 			}
 		}
 		cout << endl;
-		for (int i=0; i<crossings.size(); ++i) {
+		for (unsigned int i=0; i<crossings.size(); ++i) {
 			if (variables[i]) {
 				edge e = crossings[i].first;
 				edge f = crossings[i].second;
@@ -100,6 +102,11 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 				<< ") and (" << f.first << "," << f.second << ")" << endl;
 			}
 		}
+		if (variables == oldVariables) {
+			cout << "Nothing has changed between this loop and the last loop -> terminate" << endl;
+			return solve_result_t();
+		}
+		oldVariables = variables;
 
 		//realize graph
 		Graph G = realize(originalGraph, crossings, crossingOrderMap, variables, nullOstream);
@@ -157,6 +164,13 @@ void OOCMCrossingMinimization::createVariables(
 	//create x_{e,f} variables: all combinations of edges (unordered)
 	for (vector<edge>::iterator it1 = edgeVector.begin(); it1 != edgeVector.end(); ++it1) {
 		for (vector<edge>::iterator it2 = it1 + 1; it2 != edgeVector.end(); ++it2) {
+			//ignore adjacent and same edges
+			const edge& e = *it1;
+			const edge& f = *it2;
+			if (e.first == f.first || e.first == f.second
+				|| e.second == f.first || e.second == f.second)
+				continue;
+
 			crossing c = minmax(*it1, *it2);
 			outCrossings.push_back(c);
 		}
@@ -178,7 +192,7 @@ void OOCMCrossingMinimization::createCrossingOrdersMap(
 	const vector<crossingOrder>& crossingOrders, crossingOrderMap_t& outMap)
 {
 	outMap.clear();
-	for (int i=0; i<crossingOrders.size(); ++i) {
+	for (unsigned int i=0; i<crossingOrders.size(); ++i) {
 		//outMap.emplace(crossingOrders[i], i);
 		const crossingOrder& o = crossingOrders[i];
 		outMap[get<0>(o)][get<1>(o)][get<2>(o)] = i;
@@ -332,7 +346,7 @@ Graph OOCMCrossingMinimization::realize(
 				s << "]";
 			}
 			s << " fx2:";
-			for (int i=index+1; i<fx.size(); ++i) {
+			for (unsigned int i=index+1; i<fx.size(); ++i) {
 				fx2.push_back(fx[i]);
 				s << " (" << fx[i].first.first << "," << fx[i].first.second << ")";
 				assert (crossingMap.count(fx[i].first) > 0);
@@ -382,7 +396,7 @@ bool OOCMCrossingMinimization::setObjectiveFunction(const vector<crossing>& cros
 {
 	vector<MILP::real> row (crossings.size());
 	vector<int> colno (crossings.size());
-	for (int i=0; i<crossings.size(); ++i) {
+	for (unsigned int i=0; i<crossings.size(); ++i) {
 		row[i] = 1; //TODO: edge weight (from preprocessing)
 		colno[i] = i+1;
 	}
@@ -430,21 +444,33 @@ bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 				const edge& g = m3.first;
 				int index = m3.second;
 				//add crossing-existence constraint
-				row[0] = 1; colno[0] = crossingMap.at(minmax(e, f)) + 1;
+				map<crossing, int>::iterator it1 = crossingMap.find(minmax(e, f));
+				int x_ef = -1;
+				if (it1 != crossingMap.end()) x_ef = it1->second + 1;
+				map<crossing, int>::iterator it2 = crossingMap.find(minmax(e, g));
+				int x_eg = -1;
+				if (it2 != crossingMap.end()) x_eg = it2->second + 1;
 				row[1] = -1; colno[1] = index + countX + 1;
-				if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
-					return false;
-				colno[0] = crossingMap.at(minmax(e, g)) + 1;
-				if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
-					return false;
+				if (x_ef > 0) {
+					row[0] = 1; colno[0] = x_ef;
+					if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
+						return false;
+				}
+				if (x_eg > 0) {
+					row[0] = 1; colno[0] = x_eg;
+					if (!lp->addConstraint(2, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, 0))
+						return false;
+				}
 				//add order-existence constraint
 				//TODO: constraint is added twice, check f<g
-				row[0] = 1; colno[0] = index + countX + 1;
-				row[1] = 1; colno[1] = crossingOrderMap.at(e).at(g).at(f) + countX + 1;
-				row[2] = -1; colno[2] = crossingMap.at(minmax(e, f)) + 1;
-				row[3] = -1; colno[3] = crossingMap.at(minmax(e, g)) + 1;
-				if (!lp->addConstraint(4, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, -1))
-					return false;
+				if (x_ef > 0 && x_eg > 0) {
+					row[0] = 1; colno[0] = index + countX + 1;
+					row[1] = 1; colno[1] = crossingOrderMap.at(e).at(g).at(f) + countX + 1;
+					row[2] = -1; colno[2] = x_ef;
+					row[3] = -1; colno[3] = x_eg;
+					if (!lp->addConstraint(4, &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, -1))
+						return false;
+				}
 				//add mirror-order constraint
 				//TODO: constraint is added twice, check f<g
 				row[0] = 1; colno[0] = index + countX + 1;
@@ -532,7 +558,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 
 	//create a mapping from the variable index to the crossings (0-based because the assignment is 0-based)
 	map<int, crossing> crossingVariableMap;
-	for (unsigned int i=0; i<crossingCount; ++i) {
+	for (int i=0; i<crossingCount; ++i) {
 		crossingVariableMap[i] = crossings[i];
 	}
 
@@ -778,8 +804,15 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 	for (const crossing& c : Xk) {
 		int index = indexOf(crossings, c); //TODO: binary search
 		assert (index >= 0);
-		row.push_back(-1);
-		colno.push_back(index + 1);
+		int index2 = indexOf(colno, index + 1);
+		if (index2 >= 0) {
+			//variable already used
+			//row[index2]--;
+			row[index2] = -1;
+		} else {
+			row.push_back(-1);
+			colno.push_back(index + 1);
+		}
 	}
 	for (const crossingOrder& o : Yk) {
 		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
@@ -788,9 +821,11 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 	}
 	int rhs = 1 - Xk.size() - Yk.size();
 	cout << "new constraint:" << endl;
-	for (int i=0; i<colno.size(); ++i) {
+	for (unsigned int i=0; i<colno.size(); ++i) {
 		if (row[i] > 0)
 			cout << " + ";
+		else if (row[i] == 0)
+			cout << " + 0*";
 		else
 			cout << " - ";
 		if (colno[i] <= crossingCount) {
