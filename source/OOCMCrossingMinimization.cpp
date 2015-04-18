@@ -94,14 +94,6 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 			}
 		}
 		cout << endl;
-		for (unsigned int i=0; i<crossings.size(); ++i) {
-			if (variables[i]) {
-				edge e = crossings[i].first;
-				edge f = crossings[i].second;
-				cout << "introduce crossing between (" << e.first << "," << e.second
-				<< ") and (" << f.first << "," << f.second << ")" << endl;
-			}
-		}
 		if (variables == oldVariables) {
 			cout << "Nothing has changed between this loop and the last loop -> terminate" << endl;
 			return solve_result_t();
@@ -791,6 +783,27 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 	}
 	cout << endl;
 
+	//Validation
+	//Every variable in CrPairs must be assigned to zero
+	for (const crossing& c : CrPairs) {
+		int index = indexOf(crossings, c); //TODO: binary search
+		assert (index >= 0);
+		bool assignment = variableAssignment[index];
+		assert (assignment == false);
+	}
+	//Every variable in Xk and Yk must be assigned to one
+	for (const crossing& c : Xk) {
+		int index = indexOf(crossings, c);
+		assert (index >= 0);
+		bool assignment = variableAssignment[index];
+		assert (assignment == true);
+	}
+	for (const crossingOrder& o : Yk) {
+		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
+		bool assignment = variableAssignment[index];
+		assert (assignment == true);
+	}
+
 	//now setup the equation
 	vector<MILP::real> row;
 	vector<int> colno;
@@ -820,6 +833,8 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 		colno.push_back(index + crossingCount + 1);
 	}
 	int rhs = 1 - Xk.size() - Yk.size();
+
+	//Debug
 	cout << "new constraint:" << endl;
 	for (unsigned int i=0; i<colno.size(); ++i) {
 		if (row[i] > 0)
@@ -846,6 +861,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 	}
 	cout << " >= " << rhs << endl;
 
+	//send to LP
 	return lp->addConstraint(colno.size(), &row[0], &colno[0], MILP::ConstraintType::GreaterThanEqual, rhs);
 }
 
