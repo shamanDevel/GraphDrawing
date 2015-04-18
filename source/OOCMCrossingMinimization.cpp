@@ -167,6 +167,7 @@ void OOCMCrossingMinimization::createVariables(
 			outCrossings.push_back(c);
 		}
 	}
+	sort(outCrossings.begin(), outCrossings.end());
 	//create y_(e,f,g) variables: all ordered combinations of three edges
 	for (edge e : edgeVector) {
 		for (edge f : edgeVector) {
@@ -719,9 +720,21 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 		if (data.type == NodeType::CROSSING) continue;
 		//it is a node in the original graph, no walk along all outgoing edges until another original node is found
 		vector<int> targetNodes;
-		set<int> visitedNodes;
-		visitedNodes.insert(n);
-		findNextNormalNodes(kuratowski_edges, n, targetNodes, visitedNodes, realizedGraph);
+		//set<int> visitedNodes;
+		//visitedNodes.insert(n);
+		//findNextNormalNodes(kuratowski_edges, n, targetNodes, visitedNodes, realizedGraph);
+		for (const auto& e : kuratowski_edges) {
+			int v;
+			if (e.m_source == n)
+				v = e.m_target;
+			else if (e.m_target == n)
+				v = e.m_source;
+			else
+				continue;
+			NodeData data = get(node_data_t(), realizedGraph, v);
+			if (data.type == NodeType::CROSSING) continue;
+			targetNodes.push_back(v);
+		}
 		//add found targets
 		for (int v : targetNodes)
 			kuratowskiEdgesInG.insert(minmax(n, v));
@@ -772,7 +785,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 
 			if (is_disjoint(s1, s2)) {
 				//add this crossing
-				CrPairs.insert(minmax(e, f));
+				crossing c = minmax(e, f);
+				//if (binary_search(crossings.begin(), crossings.end(), c)) {
+				vector<crossing>::const_iterator it = find(crossings.begin(), crossings.end(), c);
+				if (it ==  crossings.end()) continue;
+				int index = it - crossings.begin();
+				if (variableAssignment[index]) continue; //Already form a crossing, but not used
+				//add it
+				CrPairs.insert(c);
 			}
 		}
 	}
@@ -800,7 +820,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const vector<edge>& edges
 	}
 	for (const crossingOrder& o : Yk) {
 		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
-		bool assignment = variableAssignment[index];
+		bool assignment = variableAssignment[index + crossingCount];
 		assert (assignment == true);
 	}
 

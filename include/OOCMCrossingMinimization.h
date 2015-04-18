@@ -52,7 +52,8 @@ public: //only for unit tests
 			edgehash >
 		crossingOrderMap_t; //accessed by map[e][f][g] = index
 
-	///	\brief	Creates the variables for the ILP formulation
+	///	\brief	Creates the variables for the ILP formulation.
+	///			outCrossings is sorted
 	void createVariables(const Graph& originalG, vector<crossing>& outCrossings, vector<crossingOrder>& outCrossingOrders);
 
 	void createCrossingOrdersMap(const vector<crossingOrder>& crossingOrders, crossingOrderMap_t& outMap);
