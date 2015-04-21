@@ -59,7 +59,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\boost_1_57_0\lib32-msvc-11.0;C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/liblpsolve55.lib;Psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -78,8 +78,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\GraphDrawing\Release;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Release\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/liblpsolve55.lib;Psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\boost_1_57_0\lib32-msvc-11.0;C:\Users\Sebastian\Documents\C++\GraphDrawing\Release;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Release\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Release/liblpsolve55.lib;Psapi.lib;boost_graph-vc110-mt-1_57.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
