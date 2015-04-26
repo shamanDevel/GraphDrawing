@@ -30,9 +30,6 @@
     <ClInclude Include="include\GraphGenerator.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="include\Graph.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="include\GraphConverter.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
@@ -40,9 +37,6 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="include\MILP_lp_solve.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="include\SOCMCrossingMinimization.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="include\CrossingMinimization.h">
@@ -68,10 +62,10 @@
     <ClCompile Include="source\MILP_lp_solve.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="source\SOCMCrossingMinimization.cpp">
+    <ClCompile Include="source\OOCMCrossingMinimization.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="source\OOCMCrossingMinimization.cpp">
+    <ClCompile Include="source\ogdf_include.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

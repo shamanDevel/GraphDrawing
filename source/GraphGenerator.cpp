@@ -22,127 +22,107 @@ GraphGenerator::~GraphGenerator(void)
 {
 }
 
-bool GraphGenerator::removeEdge(Graph& g, vector<pair<int, int> >& edges)
+bool GraphGenerator::removeEdge(ogdf::Graph& g, vector<ogdf::edge>& edges)
 {
-	int nodeCount = num_vertices(g);
-	int edgeCount = num_edges(g);
-	vector<int> tmp(nodeCount);
+	int nodeCount = g.numberOfNodes();
+	int edgeCount = g.numberOfEdges();
 	vector<int> checkEdge(edgeCount);
 	for (int e=0; e<edgeCount; ++e) {checkEdge[e]=e;}
 	shuffle(checkEdge.begin(), checkEdge.end(), randomEngine);
 	for (int i : checkEdge) {
 		//remove the edge at index i
-		int u = edges[i].first;
-		int v = edges[i].second;
-		remove_edge(u, v, g);
+		ogdf::edge e = edges[i];
+		ogdf::node u = e->source();
+		ogdf::node v = e->target();
+		g.delEdge(e); //TODO: use hideEdge, restoreEdge
 		//check if the graph is still connected
-		if (boost::connected_components(g, &tmp[0]) == 1) {
+		if (ogdf::isConnected(g)) {
 			edges.erase(edges.begin() + i);
 			return true;
 		}
 		//re-add edge
-		add_edge(u, v, g);
+		g.newEdge(u, v);
 	}
 	return false;
 }
 
-boost::optional<Graph> GraphGenerator::createRandomGraph(unsigned int n, unsigned int e)
+boost::optional<ogdf::Graph> GraphGenerator::createRandomGraph(unsigned int n, unsigned int e)
 {
 	if (e < n-1) {
 		//too less edges (less than a straight line)
-		return boost::optional<Graph>();
+		return boost::optional<ogdf::Graph>();
 	}
 	if (e > n*(n-1)/2) {
 		//too many edges (more than the complete graph)
-		return boost::optional<Graph>();
+		return boost::optional<ogdf::Graph>();
 	}
 	//create random graph
-	Graph g(n);
+	ogdf::Graph g;
+	vector<ogdf::node> nodes (n);
+	for (int i=0; i<n; ++i) {
+		nodes[i] = g.newNode();
+	}
 	int edgeCount = 0;
-	vector<pair<int, int> > edges;
+	vector<ogdf::edge> edges;
 	for (int u=0; u<n-1; ++u) {
 		for (int v=u+1; v<n; ++v) {
-			add_edge(u, v, g);
-			edges.push_back(make_pair(u, v));
+			ogdf::edge e = g.newEdge(nodes[u], nodes[v]);
+			edges.push_back(e);
 			edgeCount ++;
 		}
 	}
 	for (int i=edgeCount; i>e; --i) {
 		removeEdge(g, edges);
 	}
-	//set node properties
-	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), g);
-	for (int i=0; i<n; ++i) {
-		NodeData data;
-		data.label = i+1;
-		data.type = NodeType::DEFAULT;
-		nodeProps[i] = data;
-	}
 
-	return boost::optional<Graph>(g);
+	return boost::optional<ogdf::Graph>(g);
 }
 
-boost::optional<Graph> GraphGenerator::createRandomPlanarGraph(unsigned int s, unsigned int e)
+boost::optional<ogdf::Graph> GraphGenerator::createRandomPlanarGraph(unsigned int s, unsigned int e)
 {
 	unsigned int nodeCount = s*s;
 	if (e < nodeCount - 1) {
 		//too less edges (less than a straight line)
-		return boost::optional<Graph>();
+		return boost::optional<ogdf::Graph>();
 	}
 	if (e > (s-1)*(s-1)*3 + (s-1)*2) {
 		//too many edges (more than the complete graph)
-		return boost::optional<Graph>();
+		return boost::optional<ogdf::Graph>();
 	}
 	//create random planar graph
-	Graph g(s*s);
+	ogdf::Graph g;
+	vector<ogdf::node> nodes (s*s);
+	for (int i=0; i<s*s; ++i) {
+		nodes[i] = g.newNode();
+	}
 	int edgeCount = 0;
-	vector<pair<int, int> > edges;
+	vector<ogdf::edge> edges;
 	for (int x=0; x<s-1; ++x) {
 		for (int y=0; y<s-1; ++y) {
-			pair<int, int> p;
-			p = make_pair(x + y*s, x+1 + y*s);
-			add_edge(p.first, p.second, g);
-			edges.push_back(p);
-			p = make_pair(x + y*s, x + (y+1)*s);
-			add_edge(p.first, p.second, g);
-			edges.push_back(p);
-			p = make_pair(x + y*s, x+1 + (y+1)*s);
-			add_edge(p.first, p.second, g);
-			edges.push_back(p);
+			edges.push_back(g.newEdge(nodes[x + y*s], nodes[x+1 + y*s]));
+			edges.push_back(g.newEdge(nodes[x + y*s], nodes[x + (y+1)*s]));
+			edges.push_back(g.newEdge(nodes[x + y*s], nodes[x+1 + (y+1)*s]));
 			edgeCount += 3;
 		}
 	}
 	for (int x=0; x<s-1; ++x) {
 		int y = s-1;
-		pair<int, int> p = make_pair(x + y*s, x+1 + y*s);
-		add_edge(p.first, p.second, g);
-		edges.push_back(p);
+		edges.push_back(g.newEdge(nodes[x + y*s], nodes[x+1 + y*s]));
 		edgeCount++;
 	}
 	for (int y=0; y<s-1; ++y) {
 		int x = s-1;
-		pair<int, int> p = make_pair(x + y*s, x + (y+1)*s);
-		add_edge(p.first, p.second, g);
-		edges.push_back(p);
+		edges.push_back(g.newEdge(nodes[x + y*s], nodes[x + (y+1)*s]));
 		edgeCount++;
 	}
 	for (int i=edgeCount; i>e; --i) {
 		if (!removeEdge(g, edges)) {
 			//failed to remove edge
-			return boost::optional<Graph>();
+			return boost::optional<ogdf::Graph>();
 		}
 	}
 
-	//set node properties
-	boost::property_map<Graph, node_data_t>::type nodeProps = get(node_data_t(), g);
-	for (int i=0; i<s*s; ++i) {
-		NodeData data;
-		data.label = i+1;
-		data.type = NodeType::DEFAULT;
-		nodeProps[i] = data;
-	}
-
-	return boost::optional<Graph>(g);
+	return boost::optional<ogdf::Graph>(g);
 }
 
 }

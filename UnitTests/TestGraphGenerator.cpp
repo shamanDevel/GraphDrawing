@@ -7,17 +7,17 @@
 #include <iostream>
 #include <math.h>
 #include <GraphGenerator.h>
-#include <GraphConverter.h>
-#include <boost/graph/connected_components.hpp>
-#include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <ogdf_include.h>
 #include <ogdf\planarlayout\PlanarDrawLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
 #include <ogdf\energybased\StressMajorizationSimple.h>
+#include <ogdf\planarity\BoyerMyrvold.h>
+#include <ogdf\basic\simple_graph_alg.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
 using namespace std;
+using namespace ogdf;
 
 //#define SAVE_GRAPHS
 
@@ -35,30 +35,28 @@ namespace UnitTests
 			return r;
 		}
 
-		static void TestAndSaveGraph(const Graph& g, const char* prefix)
+		static void SaveGraph(const Graph& G, const char* prefix)
 		{
-			int numNodes = num_vertices(g);
-			int numEdges = num_edges(g);
-			//convert
-			ogdf::Graph G;
+#ifdef SAVE_GRAPHS
+
+			int numNodes = G.numberOfNodes();
+			int numEdges = G.numberOfEdges();
+			//converter
 			ogdf::GraphAttributes GA(G, 
 				ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
 				| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
 				| ogdf::GraphAttributes::nodeColor );
-			GraphConverter::Settings settings;
-			settings.labelNodes = true;
-			settings.nodeSize = 10.0;
-			settings.edgeWidth = 1.0;
-			settings.nodeColor = "#AAAAAA";
-			GraphConverter::convert(g, G, GA, settings);
-			int numNodes2 = G.numberOfNodes();
-			int numEdges2 = G.numberOfEdges();
-			Assert::AreEqual(numNodes, numNodes2, L"Node count is not equal", LINE_INFO());
-			Assert::AreEqual(numEdges, numEdges2, L"Edge count is not equal", LINE_INFO());
+			SList<node> nodes;
+			G.allNodes(nodes);
+			for (node n : nodes) {
+				stringstream s;
+				s << n->index();
+				GA.labelNode(n) = s.str().c_str();
+			}
 
-#ifdef SAVE_GRAPHS
 			//layout
-			bool planar = boost::boyer_myrvold_planarity_test(g);
+			BoyerMyrvold bm;
+			bool planar = bm.isPlanar(G);
 			if (planar) {
 #if 0
 				//use planar layout
@@ -130,15 +128,14 @@ namespace UnitTests
 					boost::optional<Graph> og = gen.createRandomGraph(n, e);
 					Assert::IsTrue(og, L"unable to create graph", LINE_INFO());
 					Graph g = *og;
-					int numNodes = num_vertices(g);
-					int numEdges = num_edges(g);
+					int numNodes = g.numberOfNodes();
+					int numEdges = g.numberOfEdges();
 					Assert::AreEqual(n, numNodes, L"Node count is wrong", LINE_INFO());
 					Assert::AreEqual(e, numEdges, L"Edge count is wrong", LINE_INFO());
-					vector<int> nodeVec(numNodes);
-					int numComp = boost::connected_components(g, &nodeVec[0]);
-					Assert::AreEqual(1, numComp, L"Graph is not connected", LINE_INFO());
+					bool connected = isConnected(g);
+					Assert::IsTrue(connected, L"Graph is not connected", LINE_INFO());
 
-					TestAndSaveGraph(g, "random");
+					SaveGraph(g, "random");
 				}
 			}
 		}
@@ -146,6 +143,7 @@ namespace UnitTests
 		TEST_METHOD(TestPlanarGraphGen)
 		{
 			GraphGenerator gen;
+			BoyerMyrvold bm;
 			// Tests if the function createRandomPlanarGraph creates correct graphs
 			for (int n=3; n<20; ++n) {
 				for (int i=0; i<10; ++i) {
@@ -159,17 +157,16 @@ namespace UnitTests
 					boost::optional<Graph> og = gen.createRandomPlanarGraph(n, e);
 					Assert::IsTrue(og, L"unable to create graph", LINE_INFO());
 					Graph g = *og;
-					int numNodes = num_vertices(g);
-					int numEdges = num_edges(g);
+					int numNodes = g.numberOfNodes();
+					int numEdges = g.numberOfEdges();
 					Assert::AreEqual(n*n, numNodes, L"Node count is wrong", LINE_INFO());
 					Assert::AreEqual(e, numEdges, L"Edge count is wrong", LINE_INFO());
-					vector<int> nodeVec(numNodes);
-					int numComp = boost::connected_components(g, &nodeVec[0]);
-					Assert::AreEqual(1, numComp, L"graph is not connected", LINE_INFO());
-					bool planar = boost::boyer_myrvold_planarity_test(g);
+					bool connected = isConnected(g);
+					Assert::IsTrue(connected, L"graph is not connected", LINE_INFO());
+					bool planar = bm.isPlanar(g);
 					Assert::IsTrue(planar, L"Graph is not planar", LINE_INFO());
 
-					TestAndSaveGraph(g, "randomPlanar");
+					SaveGraph(g, "randomPlanar");
 				}
 			}
 		}

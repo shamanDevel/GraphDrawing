@@ -891,7 +891,9 @@ void Graph::delNode(node v)
 
 void Graph::delEdge(edge e)
 {
-	OGDF_ASSERT(e != 0 && e->graphOf() == this)
+	//OGDF_ASSERT(e != 0 && e->graphOf() == this)
+	OGDF_ASSERT(e != 0)
+	OGDF_ASSERT(e->graphOf() == this)
 
 	//  notify all registered observers
 	for(ListIterator<GraphObserver*> it = m_regStructures.begin();

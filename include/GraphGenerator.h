@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graph.h>
+#include <ogdf_include.h>
 #include <boost/optional.hpp>
 #include <random>
 #include <vector>
@@ -26,7 +26,7 @@ public:
 	///	\param nodeCount	The count of nodes
 	///	\param edgeCount	The count of edges
 	///	\return	If the edge and node counts are valid, the boost::optional will contain the graph.
-	boost::optional<Graph> createRandomGraph(unsigned int nodeCount, unsigned int edgeCount);
+	boost::optional<ogdf::Graph> createRandomGraph(unsigned int nodeCount, unsigned int edgeCount);
 
 	///	\brief	Creates a random planar graph with the specified node and edge count.
 	///			If first creates a regular triangle mesh with the side length of sqrtNodeCount,
@@ -40,11 +40,11 @@ public:
 	///	\param sqrtNodeCount	The side length of the triangle grid
 	///	\param edgeCount		The count of edges
 	///	\return	If the edge and node counts are valid, the boost::optional will contain the graph.
-	boost::optional<Graph> createRandomPlanarGraph(unsigned int sqrtNodeCount, unsigned int edgeCount);
+	boost::optional<ogdf::Graph> createRandomPlanarGraph(unsigned int sqrtNodeCount, unsigned int edgeCount);
 
 private:
 	//removes a random edge without disconnecting the graph
-	bool removeEdge(Graph& g, vector<pair<int, int> >& edges);
+	bool removeEdge(ogdf::Graph& g, vector<ogdf::edge>& edges);
 
 	std::default_random_engine randomEngine;
 };

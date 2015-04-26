@@ -13,23 +13,25 @@
 #include <GraphConverter.h>
 #include <CrossingMinimization.h>
 #include <OOCMCrossingMinimization.h>
-#include <boost/graph/connected_components.hpp>
-#include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <ogdf_include.h>
 #include <ogdf\planarlayout\MixedModelLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
 #include <ogdf\energybased\StressMajorizationSimple.h>
+#include <ogdf\planarity\BoyerMyrvold.h>
 #include <MILP.h>
 #include <MILP_lp_solve.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
 using namespace std;
+using namespace ogdf;
 
 #define SAVE_GRAPHS
 
 namespace UnitTests
 {		
+	#define PRINT_CROSSING(os, c) (os) << " (" << (c).first->source()->index() << "," << (c).first->target()->index() << ")x(" << (c).second->source()->index() << "," << (c).second->target()->index() << ")"
+
 	TEST_CLASS(TestOOCMCrossingMinimization)
 	{
 	public:
@@ -93,9 +95,11 @@ namespace UnitTests
 					stringstream s;
 					OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-					Graph g2 = cm.realize(g, crossings, crossingOrdersMap, assignment, s);
-					int n2 = num_vertices(g2);
-					int m2 = num_edges(g2);
+					unordered_map<node, int> crossingNodes;
+					GraphCopy g2 (g);
+					cm.realize(g, g2, crossings, crossingOrdersMap, assignment, crossingNodes, s);
+					int n2 = g2.numberOfNodes();
+					int m2 = g2.numberOfEdges();
 
 					//Test -> Graph should be equivalent
 					Assert::AreEqual(n, n2, L"Node count does not match", LINE_INFO());
@@ -107,6 +111,7 @@ namespace UnitTests
 		TEST_METHOD(OOCM_TestRealizeK6) 
 		{
 			GraphGenerator gen;
+			BoyerMyrvold bm;
 			OOCMCrossingMinimization cm(NULL);
 			vector<OOCMCrossingMinimization::crossing> crossings;
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
@@ -116,43 +121,72 @@ namespace UnitTests
 
 			//Make the K6 planar
 			Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
-			Assert::IsFalse(boost::boyer_myrvold_planarity_test(K6), L"K6 should not be planar", LINE_INFO());
+			Assert::IsFalse(bm.isPlanar(K6), L"K6 should not be planar", LINE_INFO());
 			cm.createVariables(K6, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
 			rs = stringstream();
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-			Graph g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
-			Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K6 should not be planar", LINE_INFO());
+			unordered_map<node, int> crossingNodes;
+			GraphCopy g (K6);
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
+			Assert::IsFalse(bm.isPlanar(g), L"realized K6 should not be planar", LINE_INFO());
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
+			SList<node> nodeList;
+			g.allNodes(nodeList);
+			vector<node> nodes(nodeList.size());
+			for (const node& n : nodeList) nodes[n->index()] = n;
+			stringstream str;
+			str << "crossings: ";
+			for (auto c : crossings) {
+				PRINT_CROSSING(str, c);
+			}
+			str << endl;
+			Logger::WriteMessage(str.str().c_str());
+#define SEARCH_EDGE(g,u,v) (g).searchEdge(nodes[(u)], nodes[(v)])
+			int v1 = crossings[0].first->source()->index();
+			int u1 = crossings[0].first->target()->index();
+			int v2 = crossings[0].second->source()->index();
+			int u2 = crossings[0].second->target()->index();
+			str = stringstream();
+			OOCMCrossingMinimization::crossing c = make_pair( SEARCH_EDGE(g, v1,u1), SEARCH_EDGE(g, v2,u2));
+			str << "c1: ";
+			PRINT_CROSSING(str, crossings[0]);
+			str << "  c2: ";
+			PRINT_CROSSING(str, c);
+			str << endl;
+			Logger::WriteMessage(str.str().c_str());
+			Assert::IsTrue(crossings[0] == c, 
+				L"unable to compare edges", LINE_INFO());
 			for (int i=0; i<crossings.size(); ++i) {
 				OOCMCrossingMinimization::crossing c = crossings[i];
-				if (c == make_pair( make_pair(0,1), make_pair(3,5) )
-					|| c == make_pair( make_pair(0,4), make_pair(2,3) )
-					|| c == make_pair( make_pair(1,2), make_pair(4,5) )) {
+				if (c == make_pair( SEARCH_EDGE(g, 0,1), SEARCH_EDGE(g, 3,5) )
+					|| c == make_pair( SEARCH_EDGE(g, 0,4), SEARCH_EDGE(g, 2,3) )
+					|| c == make_pair( SEARCH_EDGE(g, 1,2), SEARCH_EDGE(g, 4,5) )) {
 						assignment[i] = true;
 						countOfOnes++;
 				}
 			}
+#undef SEARCH_EDGE
 			Assert::AreEqual(3, countOfOnes, L"Three crossings should be set", LINE_INFO());
 			//realize
 			rs = stringstream();
 			rs << "K6: " << endl;
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-			g = cm.realize(K6, crossings, crossingOrdersMap, assignment, rs);
+			g = GraphCopy(K6);
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
 			Logger::WriteMessage(rs.str().c_str());
-			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K6 should now be planar", LINE_INFO());
+			Assert::IsTrue(bm.isPlanar(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
 
 			//test if the variable entries in the node are correct
-			std::pair<vertex_iterator, vertex_iterator> nodeIter = vertices(g);
-			for(vertex_iterator it = nodeIter.first; it!=nodeIter.second; ++it) {
-				NodeData data = get(node_data_t(), g, *it);
-				if (data.type == NodeType::CROSSING) {
-					int variable = data.variable;
+			g.allNodes(nodeList);
+			for(const node& n : nodeList) {
+				if (crossingNodes.count(n) > 0) {
+					int variable = crossingNodes.at(n);
 					Assert::IsTrue(assignment[variable], L"named variable is not correct", LINE_INFO());
 				}
 			}
@@ -163,12 +197,8 @@ namespace UnitTests
 			Logger::WriteMessage("LP initialized.");
 			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
 			Logger::WriteMessage("Objective function set.");
-			vector<OOCMCrossingMinimization::edge> edgeVector;
-			std::pair<edge_iterator, edge_iterator> edgeIter = edges(K6);
-			for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
-				OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
-				edgeVector.push_back(e);
-			}
+			SList<edge> edgeVector;
+			K6.allEdges(edgeVector);
 			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
 				L"unable to add linear ordering constraints", LINE_INFO());
 			Logger::WriteMessage("Linear Ordering Constraints added.");
@@ -190,7 +220,7 @@ namespace UnitTests
 			Assert::AreEqual(3.0, objective, L"wrong objective", LINE_INFO());
 
 #ifdef SAVE_GRAPHS
-			TestAndSaveGraph(k6, "K6");
+			SaveGraph(k6, "K6");
 #endif
 
 		}
@@ -198,6 +228,7 @@ namespace UnitTests
 		TEST_METHOD(OOCM_TestRealizeK8)
 		{
 			GraphGenerator gen;
+			BoyerMyrvold bm;
 			OOCMCrossingMinimization cm(NULL);
 			vector<OOCMCrossingMinimization::crossing> crossings;
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
@@ -253,22 +284,29 @@ namespace UnitTests
 				{3,5,2,6,1,6}
 			};
 			Graph K8 = *gen.createRandomGraph(8, 8*(8-1)/2);
-			Assert::IsFalse(boost::boyer_myrvold_planarity_test(K8), L"K8 should not be planar", LINE_INFO());
+			Assert::IsFalse(bm.isPlanar(K8), L"K8 should not be planar", LINE_INFO());
 			cm.createVariables(K8, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
 			rs = stringstream();
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-			Graph g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
-			Assert::IsFalse(boost::boyer_myrvold_planarity_test(g), L"realized K8 should not be planar", LINE_INFO());
+			unordered_map<node, int> crossingNodes;
+			GraphCopy g (K8);
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
+			Assert::IsFalse(bm.isPlanar(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
 			int index = 0;
+			SList<node> nodeList;
+			g.allNodes(nodeList);
+			vector<node> nodes;
+			for (const node& n : nodeList) nodes.push_back(n);
+#define SEARCH_EDGE(u,v) g.searchEdge(nodes[(u)], nodes[(v)])
 			for (int i=0; i<18; ++i) {
 				OOCMCrossingMinimization::crossing c 
-					= make_pair(make_pair(K8crossings[i][0], K8crossings[i][1]),
-					            make_pair(K8crossings[i][2], K8crossings[i][3]));
+					= make_pair(SEARCH_EDGE(K8crossings[i][0], K8crossings[i][1]),
+					            SEARCH_EDGE(K8crossings[i][2], K8crossings[i][3]));
 				for (; crossings[index] != c; ++index);
 				Assert::IsTrue(crossings[index] == c);
 				assignment[index] = true;
@@ -276,30 +314,33 @@ namespace UnitTests
 			}
 			for (int i=0; i<24; ++i) {
 				OOCMCrossingMinimization::crossingOrder o
-					= make_tuple(make_pair(K8crossingOrders[i][0], K8crossingOrders[i][1]),
-					             make_pair(K8crossingOrders[i][2], K8crossingOrders[i][3]),
-								 make_pair(K8crossingOrders[i][4], K8crossingOrders[i][5]));
+					= make_tuple(SEARCH_EDGE(K8crossingOrders[i][0], K8crossingOrders[i][1]),
+					             SEARCH_EDGE(K8crossingOrders[i][2], K8crossingOrders[i][3]),
+								 SEARCH_EDGE(K8crossingOrders[i][4], K8crossingOrders[i][5]));
 				index = 0;
 				for (; crossingOrders[index] != o; ++index);
 				Assert::IsTrue(crossingOrders[index] == o);
 				assignment[index + crossings.size()] = true;
 				index++;
 			}
+#undef SEARCH_EDGE
 			rs = stringstream();
 			rs << "K8: " << endl;
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-			g = cm.realize(K8, crossings, crossingOrdersMap, assignment, rs);
+			crossingNodes.clear();
+			g = GraphCopy (K8);
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
 			Logger::WriteMessage(rs.str().c_str());
-			Assert::IsTrue(boost::boyer_myrvold_planarity_test(g), L"realized K8 should now be planar", LINE_INFO());
+			Assert::IsTrue(bm.isPlanar(g), L"realized K8 should now be planar", LINE_INFO());
 			Graph k8 = g;
 
 			//test if the variable entries in the node are correct
-			std::pair<vertex_iterator, vertex_iterator> nodeIter = vertices(g);
-			for(vertex_iterator it = nodeIter.first; it!=nodeIter.second; ++it) {
-				NodeData data = get(node_data_t(), g, *it);
-				if (data.type == NodeType::CROSSING) {
-					int variable = data.variable;
+			nodeList.clear();
+			g.allNodes(nodeList);
+			for(const node& n : nodeList) {
+				if (crossingNodes.count(n) > 0) {
+					int variable = crossingNodes.at(n);
 					Assert::IsTrue(assignment[variable], L"named variable is not correct", LINE_INFO());
 				}
 			}
@@ -310,12 +351,8 @@ namespace UnitTests
 			Logger::WriteMessage("LP initialized.");
 			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
 			Logger::WriteMessage("Objective function set.");
-			vector<OOCMCrossingMinimization::edge> edgeVector;
-			std::pair<edge_iterator, edge_iterator> edgeIter = edges(K8);
-			for (edge_iterator it = edgeIter.first; it!=edgeIter.second; ++it) {
-				OOCMCrossingMinimization::edge e = minmax(it->m_source, it->m_target);
-				edgeVector.push_back(e);
-			}
+			SList<edge> edgeVector;
+			K8.allEdges(edgeVector);
 			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
 				L"unable to add linear ordering constraints", LINE_INFO());
 			Logger::WriteMessage("Linear Ordering Constraints added.");
@@ -337,7 +374,7 @@ namespace UnitTests
 			Assert::AreEqual(18.0, objective, L"wrong objective", LINE_INFO());
 
 #ifdef SAVE_GRAPHS
-			TestAndSaveGraph(k8, "K8");
+			SaveGraph(k8, "K8");
 #endif
 		}
 
@@ -349,32 +386,32 @@ namespace UnitTests
 			return r;
 		}
 
-		static void TestAndSaveGraph(const Graph& g, const char* prefix)
+				static void SaveGraph(const Graph& G, const char* prefix)
 		{
-			int numNodes = num_vertices(g);
-			int numEdges = num_edges(g);
-			//convert
-			ogdf::Graph G;
+#ifdef SAVE_GRAPHS
+
+			int numNodes = G.numberOfNodes();
+			int numEdges = G.numberOfEdges();
+			//converter
 			ogdf::GraphAttributes GA(G, 
 				ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
 				| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
 				| ogdf::GraphAttributes::nodeColor );
-			GraphConverter::Settings settings;
-			settings.labelNodes = true;
-			settings.nodeSize = 20.0;
-			settings.edgeWidth = 1.0;
-			settings.nodeColor = "#AAAAAA";
-			GraphConverter::convert(g, G, GA, settings);
-			int numNodes2 = G.numberOfNodes();
-			int numEdges2 = G.numberOfEdges();
-			Assert::AreEqual(numNodes, numNodes2, L"Node count is not equal", LINE_INFO());
-			Assert::AreEqual(numEdges, numEdges2, L"Edge count is not equal", LINE_INFO());
+			SList<node> nodes;
+			G.allNodes(nodes);
+			for (node n : nodes) {
+				stringstream s;
+				s << n->index();
+				GA.labelNode(n) = s.str().c_str();
+			}
+
 			//layout
-			bool planar = boost::boyer_myrvold_planarity_test(g);
+			BoyerMyrvold bm;
+			bool planar = bm.isPlanar(G);
 			if (planar) {
-#if 1
+#if 0
 				//use planar layout
-				ogdf::MixedModelLayout l;
+				MixedModelLayout l;
 				l.call(GA);
 #else
 				//use spring layout
@@ -411,12 +448,9 @@ namespace UnitTests
 			if (planar) {
 				s << "_planar";
 			}
-			//s << ".svg";
-			//GA.writeSVG(s.str().c_str());
-			s << ".gml";
-			GA.writeGML(s.str().c_str());
-			cout << "write graph to " << s.str() << endl;
-			//Assert::Fail(ToString(s.str()).c_str());
+			s << ".svg";
+			GA.writeSVG(s.str().c_str());
+#endif
 		}
 
 	};

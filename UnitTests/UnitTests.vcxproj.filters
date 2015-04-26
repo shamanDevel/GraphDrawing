@@ -32,10 +32,10 @@
     <ClCompile Include="TestMILP.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="TestSOCMCrossingMinimization.cpp">
+    <ClCompile Include="TestOOCMCrossingMinimization.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="TestOOCMCrossingMinimization.cpp">
+    <ClCompile Include="TestCrossingMinimization.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

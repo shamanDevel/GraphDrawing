@@ -94,8 +94,6 @@
     <ClInclude Include="include/targetver.h" />
     <ClInclude Include="include\CrossingMinimization.h" />
     <ClInclude Include="include\OOCMCrossingMinimization.h" />
-    <ClInclude Include="include\SOCMCrossingMinimization.h" />
-    <ClInclude Include="include\Graph.h" />
     <ClInclude Include="include\GraphConverter.h" />
     <ClInclude Include="include\GraphGenerator.h" />
     <ClInclude Include="include\MILP.h" />
@@ -108,8 +106,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\ogdf_include.cpp" />
     <ClCompile Include="source\OOCMCrossingMinimization.cpp" />
-    <ClCompile Include="source\SOCMCrossingMinimization.cpp" />
     <ClCompile Include="source\GraphConverter.cpp" />
     <ClCompile Include="source\GraphGenerator.cpp" />
     <ClCompile Include="source\MILP_lp_solve.cpp" />

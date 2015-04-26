@@ -94,7 +94,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="TestOOCMCrossingMinimization.cpp" />
-    <ClCompile Include="TestSOCMCrossingMinimization.cpp" />
+    <ClCompile Include="TestCrossingMinimization.cpp" />
     <ClCompile Include="TestGraphGenerator.cpp" />
     <ClCompile Include="TestMILP.cpp" />
   </ItemGroup>
