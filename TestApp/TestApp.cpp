@@ -257,7 +257,7 @@ void OOCM_TestRealizeK8()
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 	unordered_map<node, int> crossingNodes;
 	GraphCopy g (K8);
-	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, cout);
+	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 	assert(!bm.isPlanar(g));
 
 	//set variables
@@ -293,7 +293,7 @@ void OOCM_TestRealizeK8()
 	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 	crossingNodes.clear();
 	g = GraphCopy (K8);
-	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, cout);
+	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 	assert(bm.isPlanar(g));
 	Graph k8 = g;
 
@@ -394,7 +394,7 @@ void K6Bug()
 	//realize graph
 	GraphCopy g (K6);
 	unordered_map<node, int> crossingNodes;
-	cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, cout);
+	cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 	SaveGraph(g, "K6HalfPlanarized");
 
 	//extract kuratowski subdivision

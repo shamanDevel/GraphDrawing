@@ -62,7 +62,7 @@ public: //only for unit tests
 	///			the assignment of the variables described in outCrossingOrders.
 	void realize(const ogdf::Graph& originalG, ogdf::GraphCopy& G, 
 		const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
-		const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes, ostream& s);
+		const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes);
 
 	bool setObjectiveFunction(const vector<crossing>& crossings, MILP* lp);
 

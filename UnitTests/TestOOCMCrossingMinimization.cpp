@@ -92,12 +92,11 @@ namespace UnitTests
 					fill (assignment.begin(), assignment.end(), false);
 
 					//realize graph
-					stringstream s;
 					OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 					unordered_map<node, int> crossingNodes;
 					GraphCopy g2 (g);
-					cm.realize(g, g2, crossings, crossingOrdersMap, assignment, crossingNodes, s);
+					cm.realize(g, g2, crossings, crossingOrdersMap, assignment, crossingNodes);
 					int n2 = g2.numberOfNodes();
 					int m2 = g2.numberOfEdges();
 
@@ -117,7 +116,6 @@ namespace UnitTests
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
 			OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 			vector<bool> assignment;
-			stringstream rs;
 
 			//Make the K6 planar
 			Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
@@ -125,12 +123,11 @@ namespace UnitTests
 			cm.createVariables(K6, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
-			rs = stringstream();
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K6);
-			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K6 should not be planar", LINE_INFO());
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
@@ -172,13 +169,10 @@ namespace UnitTests
 #undef SEARCH_EDGE
 			Assert::AreEqual(3, countOfOnes, L"Three crossings should be set", LINE_INFO());
 			//realize
-			rs = stringstream();
-			rs << "K6: " << endl;
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			g = GraphCopy(K6);
-			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
-			Logger::WriteMessage(rs.str().c_str());
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsTrue(bm.isPlanar(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
 
@@ -234,7 +228,6 @@ namespace UnitTests
 			vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
 			OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
 			vector<bool> assignment;
-			stringstream rs;
 
 			//Make the K8 planar
 			static const int K8crossings[18][4] = {
@@ -288,12 +281,11 @@ namespace UnitTests
 			cm.createVariables(K8, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
 			fill (assignment.begin(), assignment.end(), false);
-			rs = stringstream();
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K8);
-			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
@@ -324,14 +316,12 @@ namespace UnitTests
 				index++;
 			}
 #undef SEARCH_EDGE
-			rs = stringstream();
-			rs << "K8: " << endl;
+
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			crossingNodes.clear();
 			g = GraphCopy (K8);
-			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes, rs);
-			Logger::WriteMessage(rs.str().c_str());
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsTrue(bm.isPlanar(g), L"realized K8 should now be planar", LINE_INFO());
 			Graph k8 = g;
 
