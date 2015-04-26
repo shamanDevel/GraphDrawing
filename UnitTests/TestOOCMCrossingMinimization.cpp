@@ -386,7 +386,7 @@ namespace UnitTests
 			return r;
 		}
 
-				static void SaveGraph(const Graph& G, const char* prefix)
+		static void SaveGraph(const Graph& G, const char* prefix)
 		{
 #ifdef SAVE_GRAPHS
 

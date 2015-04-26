@@ -25,6 +25,7 @@
 #include <ogdf\planarlayout\PlanarDrawLayout.h>
 #include <ogdf\energybased\FMMMLayout.h>
 #include <ogdf\energybased\StressMajorizationSimple.h>
+#include <ogdf\planarlayout\MixedModelLayout.h>
 #include <MILP.h>
 #include <MILP_lp_solve.h>
 
@@ -32,12 +33,84 @@ using namespace shaman;
 using namespace std;
 using namespace ogdf;
 
+#define SAVE_GRAPHS
+
 int RandomInt(int min, int max) 
 {
 	int r = rand();
 	r = r % (max-min+1);
 	r += min;
 	return r;
+}
+
+void SaveGraph(const Graph& G, const char* prefix)
+{
+#ifdef SAVE_GRAPHS
+
+	int numNodes = G.numberOfNodes();
+	int numEdges = G.numberOfEdges();
+	//converter
+	ogdf::GraphAttributes GA(G, 
+		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+		| ogdf::GraphAttributes::nodeColor );
+	SList<node> nodes;
+	G.allNodes(nodes);
+	for (node n : nodes) {
+		stringstream s;
+		s << n->index();
+		GA.labelNode(n) = s.str().c_str();
+		GA.width(n) = GA.height(n) = 10;
+	}
+
+	//layout
+	BoyerMyrvold bm;
+	bool planar = bm.isPlanar(G);
+	if (planar) {
+#if 1
+		//use planar layout
+		MixedModelLayout l;
+		l.call(GA);
+#else
+		//use spring layout
+		ogdf::FMMMLayout fmmm;
+		fmmm.useHighLevelOptions(true);
+		fmmm.unitEdgeLength(25.0); 
+		fmmm.newInitialPlacement(true);
+		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+		fmmm.call(GA);
+#endif
+	} else {
+#if 1
+		//use spring layout
+		ogdf::FMMMLayout fmmm;
+		fmmm.useHighLevelOptions(true);
+		fmmm.unitEdgeLength(10.0 * sqrt(numEdges)); 
+		fmmm.newInitialPlacement(true);
+		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+		fmmm.call(GA);
+#else
+		ogdf::StressMajorization sm;
+		sm.call(GA);
+#endif
+	}
+
+	//save
+	stringstream s;
+	s << "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\graphs\\";
+	s << prefix;
+	s << "_n";
+	s << numNodes;
+	s << "_e";
+	s << numEdges;
+	if (planar) {
+		s << "_planar";
+	}
+	//s << ".svg";
+	//GA.writeSVG(s.str().c_str());
+	s << ".gml";
+	GA.writeGML(s.str().c_str());
+#endif
 }
 
 void TestMinimization() {
@@ -53,6 +126,9 @@ void TestMinimization() {
 			boost::optional< pair<Graph, unsigned int> > result = cm->solve(g);
 			if (result) {
 				cout << "graph solved, count of crossings: " << result->second << endl;
+				stringstream s;
+				s << "K" << n;
+				SaveGraph(result->first, s.str().c_str());
 			} else {
 				cout << "unable to solve graph" << endl;
 			}
@@ -259,11 +335,100 @@ void OOCM_TestRealizeK8()
 	assert(18.0 == objective);
 }
 
+void K6Bug() 
+{
+	GraphGenerator gen;
+	BoyerMyrvold bm;
+	OOCMCrossingMinimization cm(NULL);
+	vector<OOCMCrossingMinimization::crossing> crossings;
+	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
+	OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
+	vector<bool> assignment;
+
+	//Create the K6
+	Graph K6 = *gen.createRandomGraph(6, 6*5/2);
+	SaveGraph(K6, "K6");
+
+	//create variables
+	cm.createVariables(K6, crossings, crossingOrders);
+	assignment.resize(crossings.size() + crossingOrders.size());
+	fill (assignment.begin(), assignment.end(), false);
+	crossingOrdersMap.clear();
+	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
+
+	//create LP model
+	MILP* lp = new MILP_lp_solve();
+	lp->initialize(crossings.size() + crossingOrders.size());
+	cm.setObjectiveFunction(crossings, lp);
+	SList<edge> edgeVector;
+	K6.allEdges(edgeVector);
+	cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp);
+
+	//set these variables to one: (0,1)x(3,4) (0,1)x(4,5) (0,2)x(4,5) (0,1),(3,4),(4,5) (4,5),(0,1),(0,2)
+	for (int i=0; i<crossings.size(); ++i) {
+		OOCMCrossingMinimization::crossing c = crossings[i];
+		int u1 = c.first->source()->index();
+		int v1 = c.first->target()->index();
+		int u2 = c.second->source()->index();
+		int v2 = c.second->target()->index();
+		if ( (u1==0 && v1==1 && u2==3 && v2==4)
+			|| (u1==0 && v1==1 && u2==4 && v2==5)
+			|| (u1==0 && v1==2 && u2==4 && v2==5) ) {
+				assignment[i] = true;
+		}
+	}
+	for (int i=0; i<crossingOrders.size(); ++i) {
+		OOCMCrossingMinimization::crossingOrder o = crossingOrders[i];
+		int u1 = get<0>(o)->source()->index();
+		int v1 = get<0>(o)->target()->index();
+		int u2 = get<1>(o)->source()->index();
+		int v2 = get<1>(o)->target()->index();
+		int u3 = get<2>(o)->source()->index();
+		int v3 = get<2>(o)->target()->index();
+		if ( (u1==0 && v1==1 && u2==3 && v2==4 && u3==4 && v3==5)
+			|| (u1==4 && v1==5 && u2==0 && v2==1 && u3==0 && v3==2) ) {
+				assignment[crossings.size() + i] = true;
+		}
+	}
+
+	//realize graph
+	GraphCopy g (K6);
+	unordered_map<node, int> crossingNodes;
+	cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes, cout);
+	SaveGraph(g, "K6HalfPlanarized");
+
+	//extract kuratowski subdivision
+	SList<KuratowskiWrapper> kuratowski_edges;
+	if (bm.planarEmbed(GraphCopySimple(g), kuratowski_edges, BoyerMyrvoldPlanar::doFindUnlimited, true)) 
+	{
+		//graph is planar
+		assert(false);
+	}
+	else
+	{
+		cout << "Count of kuratowski subdivisions: " << kuratowski_edges.size() << endl;
+		for (KuratowskiWrapper w : kuratowski_edges) {
+			cout << "Kuratowki-Subgraph:";
+			for (const auto& e : w.edgeList) {
+				cout << " (" << e->source()->index() << "," << e->target()->index() << ")" ;
+			}
+			cout << "  count=" << w.edgeList.size();
+			cout << endl;
+
+			if (!cm.addKuratowkiConstraints(edgeVector, crossings, crossingOrdersMap, assignment, w, g, crossingNodes, lp))
+				assert (false);
+
+			break; //only one kuratowski subgraph
+		}
+	}
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//OOCM_TestRealizeK8();
+	//K6Bug();
 	cin.get();
 	return 0;
 }

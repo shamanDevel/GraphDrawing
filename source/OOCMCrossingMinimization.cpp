@@ -146,7 +146,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 				if (!addKuratowkiConstraints(edgeVector, crossings, crossingOrderMap, variables, w, G, crossingNodes, lp))
 					return solve_result_t();
 
-				break; //only one kuratowski subgraph
+				//break; //only one kuratowski subgraph
 			}
 		}
 
@@ -825,10 +825,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 				//vector<crossing>::const_iterator it = find(crossings.begin(), crossings.end(), c);
 				vector<crossing>::const_iterator it;
 				for (it = crossings.begin(); it!=crossings.end(); ++it) {
-					if (( (it->first->source() == e.first && it->first->target() == e.second)
-						 || (it->first->target() == e.first && it->first->source() == e.second))
-						&& ( (it->second->source() == f.first && it->second->target() == f.second)
-						 || (it->second->target() == f.first && it->second->source() == f.second)) ) {
+					node u1 = realizedGraph.copy(it->first->source());
+					node v1 = realizedGraph.copy(it->first->target());
+					node u2 = realizedGraph.copy(it->second->source());
+					node v2 = realizedGraph.copy(it->second->target());
+					if (( (u1 == e.first && v1 == e.second)
+						 || (v1 == e.first && u1 == e.second))
+						&& ( (u2 == f.first && v2 == f.second)
+						 || (v2 == f.first && u2 == f.second)) ) {
 							 break; //found
 					}
 				}
