@@ -96,7 +96,7 @@ namespace UnitTests
 					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 					unordered_map<node, int> crossingNodes;
 					GraphCopy g2 (g);
-					cm.realize(g, g2, crossings, crossingOrdersMap, assignment, crossingNodes);
+					cm.realize(g2, crossings, crossingOrdersMap, assignment, crossingNodes);
 					int n2 = g2.numberOfNodes();
 					int m2 = g2.numberOfEdges();
 
@@ -127,7 +127,7 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K6);
-			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K6 should not be planar", LINE_INFO());
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
@@ -172,7 +172,7 @@ namespace UnitTests
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			g = GraphCopy(K6);
-			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsTrue(bm.isPlanar(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
 
@@ -285,7 +285,7 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K8);
-			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
@@ -299,8 +299,10 @@ namespace UnitTests
 				OOCMCrossingMinimization::crossing c 
 					= make_pair(SEARCH_EDGE(K8crossings[i][0], K8crossings[i][1]),
 					            SEARCH_EDGE(K8crossings[i][2], K8crossings[i][3]));
+				index = 0;
 				for (; crossings[index] != c; ++index);
 				Assert::IsTrue(crossings[index] == c);
+				Assert::IsFalse(assignment[index]);
 				assignment[index] = true;
 				index++;
 			}
@@ -312,6 +314,7 @@ namespace UnitTests
 				index = 0;
 				for (; crossingOrders[index] != o; ++index);
 				Assert::IsTrue(crossingOrders[index] == o);
+				Assert::IsFalse(assignment[index + crossings.size()]);
 				assignment[index + crossings.size()] = true;
 				index++;
 			}
@@ -321,9 +324,9 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			crossingNodes.clear();
 			g = GraphCopy (K8);
-			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
-			Assert::IsTrue(bm.isPlanar(g), L"realized K8 should now be planar", LINE_INFO());
+			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Graph k8 = g;
+			Assert::IsTrue(bm.isPlanar(k8), L"realized K8 should now be planar", LINE_INFO());
 
 			//test if the variable entries in the node are correct
 			nodeList.clear();

@@ -135,7 +135,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 		//realize graph
 		crossingNodes.clear();
 		GraphCopy G (originalGraph);
-		realize(originalGraph, G, crossings, crossingOrderMap, variables, crossingNodes);
+		realize(G, crossings, crossingOrderMap, variables, crossingNodes);
 
 		//check if the graph is now planar
 		SList<KuratowskiWrapper> kuratowski_edges;
@@ -218,7 +218,7 @@ void OOCMCrossingMinimization::createCrossingOrdersMap(
 }
 
 void OOCMCrossingMinimization::realize(
-	const Graph& originalG, GraphCopy& G, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrdersMap,
+	GraphCopy& G, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrdersMap,
 	const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes)
 {	
 	int crossingsSize = crossings.size();
@@ -333,9 +333,8 @@ void OOCMCrossingMinimization::realize(
 			s << "edge (" << e->source()->index() << "," << e->target()->index() << ") crosses with";
 			for (pair<edge, int> f : ex)
 				s << " (" << f.first->source()->index() << "," << f.first->target()->index() << ")->" << f.second;
-			s << endl;
 		}
-		LOG(debug) << s;
+		LOG(debug) << s.str();
 	}
 #endif
 
@@ -359,16 +358,16 @@ void OOCMCrossingMinimization::realize(
 		//split edges
 		node u = e->source();
 		const node eTarget = e->target();
+		int counter = 0;
 		for (pair<edge, int>& f : ex) {
 #if LOG_REALIZE_DEBUG_ENABLED == 1
+			if (counter > 0)
+				s << endl;
+			else
+				counter++;
 			s << " (" << f.first->source()->index() << "," << f.first->target()->index() << ")->" << f.second;
 #endif
-			//introduce crossing node
-			node n = G.newNode();
-			crossingNodes.emplace(n, f.second);
-#if LOG_REALIZE_DEBUG_ENABLED == 1
-			s << " -> node " << n->index();
-#endif
+
 			//check where f crosses e
 			vector< pair<edge, int> > fx = crossingMap[f.first];
 			crossingMap.erase(f.first);
@@ -384,20 +383,51 @@ void OOCMCrossingMinimization::realize(
 				assert(index >= 0);
 				return;
 			}
-			//remove old and add new edges
+
+			//introduce crossing node
+//			node n = G.newNode();
+//			crossingNodes.emplace(n, f.second);
+//#if LOG_REALIZE_DEBUG_ENABLED == 1
+//			s << " -> node " << n->index();
+//#endif
+//
+//			//remove old and add new edges
+//			edge d1 = G.searchEdge(u, eTarget);
+//			edge d2 = f.first;
+//			assert (d1 != NULL);
+//			assert (d2 != NULL);
+//			G.delEdge(d1);
+//			node fSource = f.first->source();
+//			node fTarget = f.first->target();
+//			G.delEdge(d2);
+//			edge d1c1 = G.newEdge(u, n);
+//			edge d1c2 = G.newEdge(eTarget, n);
+//			edge ef1 = G.newEdge(fSource, n);
+//			edge ef2 = G.newEdge(fTarget, n);
+//			u = n;
+
+			//introduce crossing
 			edge d1 = G.searchEdge(u, eTarget);
 			edge d2 = f.first;
-			assert (d1 != NULL);
-			assert (d2 != NULL);
-			G.delEdge(d1);
 			node fSource = f.first->source();
 			node fTarget = f.first->target();
-			G.delEdge(d2);
-			G.newEdge(u, n);
-			G.newEdge(eTarget, n);
-			edge ef1 = G.newEdge(fSource, n);
-			edge ef2 = G.newEdge(fTarget, n);
+			edge e = G.insertCrossing(d1, d2, false);
+			node n = e->source();
+			assert (n != u);
+			assert (n != eTarget);
+			assert (n != fSource);
+			assert (n != fTarget);
+			assert (G.isDummy(n));
+			crossingNodes.emplace(n, f.second);
+#if LOG_REALIZE_DEBUG_ENABLED == 1
+			s << " -> node " << n->index();
+#endif
 			u = n;
+			edge ef1 = G.searchEdge(fSource, n);
+			edge ef2 = G.searchEdge(fTarget, n);
+			assert (ef1 != NULL);
+			assert (ef2 != NULL);
+
 			//split fx
 			vector<pair<edge, int>> fx1, fx2;
 #if LOG_REALIZE_DEBUG_ENABLED == 1
@@ -450,15 +480,12 @@ void OOCMCrossingMinimization::realize(
 				crossingMap.emplace(ef2, fx2);
 			}
 
-#if LOG_REALIZE_DEBUG_ENABLED == 1
-			s << endl;
-#endif
-		}
+		} //end split edges
 
 #if LOG_REALIZE_DEBUG_ENABLED == 1
-		LOG(debug) << s;
+		LOG(debug) << s.str();
 #endif
-	}
+	} //end while(!crossingMap.empty())
 
 	return;
 }
@@ -660,7 +687,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		kuratowskiPathToNodes[n] = minmax(u, v);
 	}
 
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "Kuratowski-Nodes:";
@@ -672,7 +699,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 	for (pair<node, pair<node, node> > p : kuratowskiPathToNodes) {
 		s << "  " << p.first->index() << "->{" << p.second.first->index() << "," << p.second.second->index() << "}";
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
 	}
 #endif
 
@@ -687,14 +714,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 			Zk.insert(crossingVariableMap.at(variable));
 		}
 	}
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "Zk:";
 	for (const crossing& c : Zk) {
 		PRINT_CROSSING(s, c);
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
 	}
 #endif
 
@@ -745,14 +772,15 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 			Yk.insert(crossingOrder(e, f, g));
 		}
 	}
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "Yk:";
 	for (const crossingOrder& o : Yk) {
 		PRINT_CROSSING_ORDER(s, o);
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
+	}
 #endif
 	//Create Xk
 	set<crossing> Xk;
@@ -770,14 +798,15 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 			}
 		}
 	}
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "Xk:";
 	for (const crossing& c : Xk) {
 		PRINT_CROSSING(s, c);
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
+	}
 #endif
 
 	//Create CrPairs(K)
@@ -803,14 +832,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		for (node v : targetNodes)
 			kuratowskiEdgesInG.insert(minmax(n, v));
 	}
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	cout << "Paths in K that are edges in G:";
 	for (const auto& e : kuratowskiEdgesInG) {
 		cout << " (" << e.first << "," << e.second << ")";
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
 	}
 #endif
 
@@ -879,14 +908,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 			}
 		}
 	}
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "CrPairs:";
 	for (const crossing& c : CrPairs) {
 		PRINT_CROSSING(s, c);
 	}
-	LOG(debug) << s;
+	LOG(debug) << s.str();
 	}
 #endif
 
@@ -944,7 +973,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 	int rhs = 1 - Xk.size() - Yk.size();
 
 	//Debug
-#if LOG_REALIZE_DEBUG_ENABLED == 1
+#if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
 	s << "new constraint:" << endl;
@@ -971,7 +1000,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		}
 	}
 	s << " >= " << rhs;
-	LOG(debug) << s;
+	LOG(debug) << s.str();
 	}
 #endif
 

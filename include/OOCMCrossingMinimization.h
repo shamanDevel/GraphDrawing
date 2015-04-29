@@ -60,7 +60,7 @@ public: //only for unit tests
 	///			The first outCrossings.size() elements of variableAssignment contain the assignment of the variables
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
-	void realize(const ogdf::Graph& originalG, ogdf::GraphCopy& G, 
+	void realize(ogdf::GraphCopy& G, 
 		const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
 		const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes);
 

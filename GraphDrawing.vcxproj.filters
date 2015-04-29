@@ -45,11 +45,11 @@
     <ClInclude Include="include\OOCMCrossingMinimization.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="include\SimplificationDeg12.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source/GraphDrawing.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
     <ClCompile Include="source/stdafx.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
@@ -66,6 +66,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="source\ogdf_include.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="source\SimplificationDeg12.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

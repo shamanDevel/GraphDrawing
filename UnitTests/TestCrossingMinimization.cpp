@@ -14,8 +14,20 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace shaman;
 using namespace std;
+using namespace ogdf;
 
 //#define SAVE_GRAPHS
+
+namespace Microsoft{ namespace VisualStudio {namespace CppUnitTestFramework {
+
+template<> static std::wstring ToString<ogdf::NodeElement> (ogdf::NodeElement* n) {
+	if (n == NULL) {
+		RETURN_WIDE_STRING("NULL");
+	}
+	RETURN_WIDE_STRING(n->index());
+}
+
+}}}
 
 namespace UnitTests
 {		
@@ -42,6 +54,23 @@ namespace UnitTests
 #endif
 				}
 			}
+		}
+
+		GraphCopy createCopy(Graph& G) {
+			GraphCopy C (G);
+			return C;
+		}
+		TEST_METHOD(TestGraphCopy) {
+			GraphGenerator gen;
+			Graph G = *gen.createRandomGraph(10, 20);
+			GraphCopy C = createCopy(G);
+			//test if the linked graph is still the same
+			node n1 = G.firstNode();
+			node n2 = C.original(C.firstNode());
+			node n3 = C.copy(n1);
+			node n4 = C.firstNode();
+			Assert::AreEqual(n1, n2, L"original node of the copy is not the same", LINE_INFO());
+			Assert::AreEqual(n3, n4, L"copies are not the same", LINE_INFO());
 		}
 
 		static int RandomInt(int min, int max) 

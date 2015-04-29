@@ -11,7 +11,7 @@ class CrossingMinimization
 public:
 	virtual ~CrossingMinimization() {}
 
-	typedef boost::optional< std::pair<ogdf::Graph, unsigned int> > solve_result_t;
+	typedef boost::optional< std::pair<ogdf::GraphCopy, unsigned int> > solve_result_t;
 
 	///	\brief	Solves the crossing problem to optimum.
 	///			Input: the original graph, simple and connected

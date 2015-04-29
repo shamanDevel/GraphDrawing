@@ -1,4 +1,5 @@
 #include "stdafx.h"
+
 #include <GraphGenerator.h>
 #include <boost/graph/graph_archetypes.hpp>
 #include <boost/graph/edge_list.hpp>

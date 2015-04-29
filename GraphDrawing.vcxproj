@@ -99,9 +99,9 @@
     <ClInclude Include="include\MILP.h" />
     <ClInclude Include="include\MILP_lp_solve.h" />
     <ClInclude Include="include\ogdf_include.h" />
+    <ClInclude Include="include\SimplificationDeg12.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source/GraphDrawing.cpp" />
     <ClCompile Include="source/stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -111,6 +111,7 @@
     <ClCompile Include="source\GraphConverter.cpp" />
     <ClCompile Include="source\GraphGenerator.cpp" />
     <ClCompile Include="source\MILP_lp_solve.cpp" />
+    <ClCompile Include="source\SimplificationDeg12.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

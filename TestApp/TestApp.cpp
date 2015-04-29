@@ -10,10 +10,12 @@
 #include <math.h>
 #include <string>
 #include <cstdio>
+#include <fstream>
 #include <GraphGenerator.h>
 #include <GraphConverter.h>
 #include <CrossingMinimization.h>
 #include <OOCMCrossingMinimization.h>
+#include <SimplificationDeg12.h>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
@@ -123,7 +125,7 @@ void TestMinimization() {
 			Graph g = *gen.createRandomGraph(n, max(n*(n-1)/2, n-1));
 			int m = g.numberOfEdges();
 
-			boost::optional< pair<Graph, unsigned int> > result = cm->solve(g);
+			boost::optional< pair<GraphCopy, unsigned int> > result = cm->solve(g);
 			if (result) {
 				cout << "graph solved, count of crossings: " << result->second << endl;
 				stringstream s;
@@ -142,11 +144,34 @@ struct RomeGraphDescr
 {
 	string fileName;
 	int n;
+	int m;
 };
 
 void scanRomeGraphs(string folder, vector<RomeGraphDescr>& target)
 {
-	//TODO
+	target.clear();
+	ifstream in = ifstream (folder + "Graphs.dat");
+	if (!in.is_open()) {
+		cerr << "Unable to open file!" << endl;
+		return;
+	}
+	int n;
+	int m;
+	char name[512];
+	//read file
+	while (!in.eof()) {
+		in >> n;
+		in >> m;
+		in >> name;
+		if (strlen(name) == 0) break;
+		RomeGraphDescr descr;
+		descr.n = n;
+		descr.m = m;
+		descr.fileName = name;
+		target.push_back(descr);
+	}
+	cout << target.size() << " Graph infos read" << endl;
+	in.close();
 }
 
 void createRomeGraphsInfo(string folder)
@@ -174,7 +199,7 @@ void createRomeGraphsInfo(string folder)
 				int m = num_edges(G);
 				bool planar = boost::boyer_myrvold_planarity_test(G);
 				cout << " nodes=" << n << " edges=" << m << " planar=" << planar << endl;
-				if (planar) {
+				if (!planar) {
 					fprintf(file, "%d %d %s\n", n, m, f.filename().string().c_str());
 				}
 			}
@@ -191,244 +216,171 @@ void createRomeGraphsInfo(string folder)
 	fclose(file);
 }
 
-void OOCM_TestRealizeK8()
-{
-	GraphGenerator gen;
-	BoyerMyrvold bm;
-	OOCMCrossingMinimization cm(NULL);
-	vector<OOCMCrossingMinimization::crossing> crossings;
-	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
-	OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
-	vector<bool> assignment;
+void RomeMinimization() {
+	string folder = "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\";
+	vector<RomeGraphDescr> graphs;
+	scanRomeGraphs(folder, graphs);
 
-	//Make the K8 planar
-	static const int K8crossings[18][4] = {
-		{0,2,1,3},
-		{0,4,1,7},
-		{0,5,1,4},
-		{0,5,1,7},
-		{0,5,2,4},
-		{0,6,2,7},
-		{0,6,3,4},
-		{0,6,3,7},
-		{0,7,3,4},
-		{1,5,2,4},
-		{1,6,2,4},
-		{1,6,2,5},
-		{1,6,3,5},
-		{1,7,3,4},
-		{2,6,3,5},
-		{2,7,3,5},
-		{2,7,3,6},
-		{4,6,5,7}
-	};
-	static const int K8crossingOrders[24][6] = {
-		{0,5,1,7,1,4},
-		{0,5,1,7,2,4},
-		{0,5,1,4,2,4},
-		{0,6,3,4,3,7},
-		{0,6,3,4,2,7},
-		{0,6,3,7,2,7},
-		{1,6,2,4,2,5},
-		{1,6,2,4,3,5},
-		{1,6,2,5,3,5},
-		{1,7,0,5,0,4},
-		{1,7,0,5,3,4},
-		{1,7,0,4,3,4},
-		{2,4,1,6,1,5},
-		{2,4,1,6,0,5},
-		{2,4,1,5,0,5},
-		{2,7,3,5,3,6},
-		{2,7,3,5,0,6},
-		{2,7,3,6,0,6},
-		{3,4,0,6,0,7},
-		{3,4,0,6,1,7},
-		{3,4,0,7,1,7},
-		{3,5,2,7,2,6},
-		{3,5,2,7,1,6},
-		{3,5,2,6,1,6}
-	};
-	Graph K8 = *gen.createRandomGraph(8, 8*(8-1)/2);
-	assert(!bm.isPlanar(K8));
-	cm.createVariables(K8, crossings, crossingOrders);
-	assignment.resize(crossings.size() + crossingOrders.size());
-	fill (assignment.begin(), assignment.end(), false);
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	unordered_map<node, int> crossingNodes;
-	GraphCopy g (K8);
-	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
-	assert(!bm.isPlanar(g));
-
-	//set variables
-	int index = 0;
-	SList<node> nodeList;
-	K8.allNodes(nodeList);
-	vector<node> nodes;
-	for (const node& n : nodeList) nodes.push_back(n);
-#define SEARCH_EDGE(u,v) K8.searchEdge(nodes[(u)], nodes[(v)])
-	for (int i=0; i<18; ++i) {
-		OOCMCrossingMinimization::crossing c 
-			= make_pair(SEARCH_EDGE(K8crossings[i][0], K8crossings[i][1]),
-					    SEARCH_EDGE(K8crossings[i][2], K8crossings[i][3]));
-		for (; crossings[index] != c; ++index);
-		assert(crossings[index] == c);
-		assignment[index] = true;
-		index++;
+	int nMin = INT_MAX;
+	int nMax = INT_MIN;
+	for (const RomeGraphDescr& d : graphs) {
+		nMin = min(nMin, d.n);
+		nMax = max(nMax, d.n);
 	}
-	for (int i=0; i<24; ++i) {
-		OOCMCrossingMinimization::crossingOrder o
-			= make_tuple(SEARCH_EDGE(K8crossingOrders[i][0], K8crossingOrders[i][1]),
-					        SEARCH_EDGE(K8crossingOrders[i][2], K8crossingOrders[i][3]),
-							SEARCH_EDGE(K8crossingOrders[i][4], K8crossingOrders[i][5]));
-		index = 0;
-		for (; crossingOrders[index] != o; ++index);
-		assert(crossingOrders[index] == o);
-		assignment[index + crossings.size()] = true;
-		index++;
+	vector<RomeGraphDescr> graphs2;
+	cout << "Choose a graph from the rome graph collection" << endl;
+	//Select node count
+	while (graphs2.empty()) {
+		cout << "Enter the number of nodes between " << nMin << " and " << nMax << ": ";
+		int n;
+		cin >> n;
+		for (const RomeGraphDescr& d : graphs) {
+			if (d.n == n)
+				graphs2.push_back(d);
+		}
+		if (graphs2.empty()) {
+			cout << "No graphs with this node count found" << endl;
+		}
 	}
-#undef SEARCH_EDGE
-	cout << "K8: " << endl;
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-	crossingNodes.clear();
-	g = GraphCopy (K8);
-	cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
-	assert(bm.isPlanar(g));
-	Graph k8 = g;
-
-	//test if the variable entries in the node are correct
-	nodeList.clear();
-	g.allNodes(nodeList);
-	for(const node& n : nodeList) {
-		if (crossingNodes.count(n) > 0) {
-			int variable = crossingNodes.at(n);
-			assert(assignment[variable]);
+	//select edge count
+	int mMin = INT_MAX;
+	int mMax = INT_MIN;
+	for (const RomeGraphDescr& d : graphs2) {
+		mMin = min(mMin, d.m);
+		mMax = max(mMax, d.m);
+	}
+	vector<RomeGraphDescr> graphs3;
+	while (graphs3.empty()) {
+		cout << "Enter the number of edges between " << mMin << " and " << mMax << ": ";
+		int m;
+		cin >> m;
+		for (const RomeGraphDescr& d : graphs2) {
+			if (d.m == m)
+				graphs3.push_back(d);
+		}
+		if (graphs3.empty()) {
+			cout << "No graphs with this edge count found" << endl;
 		}
 	}
 
-	//Test if this assignment is also feasible in the lp-model
-	MILP* lp = new MILP_lp_solve();
-	assert(lp->initialize(crossings.size() + crossingOrders.size()));
-	cout << "LP initialized." << endl;
-	assert(cm.setObjectiveFunction(crossings, lp));
-	cout << "Objective function set." << endl;
-	SList<edge> edgeVector;
-	K8.allEdges(edgeVector);
-	assert(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp));
-	cout << "Linear Ordering Constraints added." << endl;
-	vector<MILP::real> row(1);
-	vector<int> colno(1);
-	row[0] = 1;
-	lp->setAddConstraintMode(true);
-	for (int i=0; i<assignment.size(); ++i) {
-		colno[0] = i+1;
-		assert(lp->addConstraint(1, &row[0], &colno[0], MILP::ConstraintType::Equal, assignment[i] ? 1 : 0));
+	cout << graphs3.size() << " graphs with the specified node and edge count found, select a random one" << endl;
+	int i = RandomInt(0, graphs3.size() - 1);
+	RomeGraphDescr d = graphs3[i];
+
+	cout << "Load " << d.fileName << " ... ";
+	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> BoostGraph;
+	BoostGraph BG;
+	try {
+		ifstream is (folder + d.fileName);
+		boost::dynamic_properties properties;
+		boost::read_graphml(is, BG, properties);
+		bool planar = boost::boyer_myrvold_planarity_test(BG);
+		assert (!planar);
 	}
-	lp->setAddConstraintMode(false);
-	cout << "Solution constraints added." << endl;
-	MILP::real objective;
-	MILP::real* variables;
-	MILP::SolveResult solveResult = lp->solve(&objective, &variables);
-	cout << "Solved." << endl;
-	assert(MILP::SolveResult::Optimal == solveResult);
-	assert(18.0 == objective);
+	catch (const boost::graph_exception& ex)
+	{
+		cerr << ex.what() << '\n';
+		return;
+	}
+	Graph G;
+	GraphConverter::convert(BG, G);
+	SaveGraph(G, d.fileName.c_str());
+	cout << " Loaded and saved" << endl;
 }
 
-void K6Bug() 
-{
+
+Graph createRandomNonPlanarGraph(int n) {
 	GraphGenerator gen;
 	BoyerMyrvold bm;
-	OOCMCrossingMinimization cm(NULL);
-	vector<OOCMCrossingMinimization::crossing> crossings;
-	vector<OOCMCrossingMinimization::crossingOrder> crossingOrders;
-	OOCMCrossingMinimization::crossingOrderMap_t crossingOrdersMap;
-	vector<bool> assignment;
-
-	//Create the K6
-	Graph K6 = *gen.createRandomGraph(6, 6*5/2);
-	SaveGraph(K6, "K6");
-
-	//create variables
-	cm.createVariables(K6, crossings, crossingOrders);
-	assignment.resize(crossings.size() + crossingOrders.size());
-	fill (assignment.begin(), assignment.end(), false);
-	crossingOrdersMap.clear();
-	cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
-
-	//create LP model
-	MILP* lp = new MILP_lp_solve();
-	lp->initialize(crossings.size() + crossingOrders.size());
-	cm.setObjectiveFunction(crossings, lp);
-	SList<edge> edgeVector;
-	K6.allEdges(edgeVector);
-	cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp);
-
-	//set these variables to one: (0,1)x(3,4) (0,1)x(4,5) (0,2)x(4,5) (0,1),(3,4),(4,5) (4,5),(0,1),(0,2)
-	for (int i=0; i<crossings.size(); ++i) {
-		OOCMCrossingMinimization::crossing c = crossings[i];
-		int u1 = c.first->source()->index();
-		int v1 = c.first->target()->index();
-		int u2 = c.second->source()->index();
-		int v2 = c.second->target()->index();
-		if ( (u1==0 && v1==1 && u2==3 && v2==4)
-			|| (u1==0 && v1==1 && u2==4 && v2==5)
-			|| (u1==0 && v1==2 && u2==4 && v2==5) ) {
-				assignment[i] = true;
+	int m = n;
+	while (true) {
+		Graph G = *gen.createRandomGraph(n, m);
+		if (bm.isPlanar(G)) {
+			m++;
+		} else {
+			return G;
 		}
 	}
-	for (int i=0; i<crossingOrders.size(); ++i) {
-		OOCMCrossingMinimization::crossingOrder o = crossingOrders[i];
-		int u1 = get<0>(o)->source()->index();
-		int v1 = get<0>(o)->target()->index();
-		int u2 = get<1>(o)->source()->index();
-		int v2 = get<1>(o)->target()->index();
-		int u3 = get<2>(o)->source()->index();
-		int v3 = get<2>(o)->target()->index();
-		if ( (u1==0 && v1==1 && u2==3 && v2==4 && u3==4 && v3==5)
-			|| (u1==4 && v1==5 && u2==0 && v2==1 && u3==0 && v3==2) ) {
-				assignment[crossings.size() + i] = true;
-		}
-	}
+}
 
-	//realize graph
-	GraphCopy g (K6);
-	unordered_map<node, int> crossingNodes;
-	cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
-	SaveGraph(g, "K6HalfPlanarized");
-
-	//extract kuratowski subdivision
-	SList<KuratowskiWrapper> kuratowski_edges;
-	if (bm.planarEmbed(GraphCopySimple(g), kuratowski_edges, BoyerMyrvoldPlanar::doFindUnlimited, true)) 
-	{
-		//graph is planar
-		assert(false);
-	}
-	else
-	{
-		cout << "Count of kuratowski subdivisions: " << kuratowski_edges.size() << endl;
-		for (KuratowskiWrapper w : kuratowski_edges) {
-			cout << "Kuratowki-Subgraph:";
-			for (const auto& e : w.edgeList) {
-				cout << " (" << e->source()->index() << "," << e->target()->index() << ")" ;
+void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
+{
+	assert(GC.consistencyCheck());
+	assert(G.consistencyCheck());
+	assert(G.numberOfNodes() == GC.numberOfNodes());
+	assert(G.numberOfEdges() == GC.numberOfEdges());
+	node v;
+	//check every node
+	forall_nodes(v, GC) {
+		node ov = GC.original(v);
+		assert(ov != NULL);
+		//find node in source graph
+		node u;
+		node ou = NULL;
+		forall_nodes(u, G) {
+			if (u == ov) {
+				assert(ou == NULL);
+				ou = u;
 			}
-			cout << "  count=" << w.edgeList.size();
-			cout << endl;
-
-			if (!cm.addKuratowkiConstraints(edgeVector, crossings, crossingOrdersMap, assignment, w, g, crossingNodes, lp))
-				assert (false);
-
-			break; //only one kuratowski subgraph
+		}
+		assert(ou != NULL);
+		//check adjacent edges
+		assert(ou->degree() == v->degree());
+		adjEntry adj;
+		forall_adj(adj, v) {
+			node n = adj->twinNode();
+			node on = GC.original(n);
+			assert(on != NULL);
+			adjEntry adj2;
+			bool found = false;
+			forall_adj(adj2, ou) {
+				node n2 = adj2->twinNode();
+				if (n2 == on) {
+					assert(!found);
+					found = true;
+				}
+			}
+			assert(found);
 		}
 	}
+}
+
+void Test_SimplificationDeg12() {
+	Graph G = createRandomNonPlanarGraph(20);
+
+	const GraphCopy testCopy (G);
+	AssertGraphEquality(G, testCopy);
+	const GraphCopy testCopy2 (testCopy);
+	AssertGraphEquality(G, testCopy2);
+	const GraphCopy testCopy3 (testCopy2);
+	AssertGraphEquality(G, testCopy3);
+
+	SimplificationDeg12 s (G);
+	const GraphCopy& GC = s.getSimplifiedGraph();
+
+	int ndif = G.numberOfNodes() - GC.numberOfNodes();
+	assert(ndif > 0);
+	int mdif = G.numberOfEdges() - GC.numberOfEdges();
+	assert(ndif == mdif);
+
+	GraphCopy G2 = s.reverseSimplification(GC);
+	AssertGraphEquality(G, G2);
+
+	const GraphCopy GC2 (GC);
+	const GraphCopy GC3 (GC2);
+	GraphCopy G3 = s.reverseSimplification(GC3);
+	AssertGraphEquality(G, G3);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
 	TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
-	//OOCM_TestRealizeK8();
-	//K6Bug();
+	//RomeMinimization();
+	//Test_SimplificationDeg12();
+
+	cout << "Press a key to exit ... " << endl;
+	cin.clear();
 	cin.get();
 	return 0;
 }

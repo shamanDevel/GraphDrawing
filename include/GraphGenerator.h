@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ogdf_include.h>
+#include <ogdf/basic/Graph_d.h>
 #include <boost/optional.hpp>
 #include <random>
 #include <vector>
