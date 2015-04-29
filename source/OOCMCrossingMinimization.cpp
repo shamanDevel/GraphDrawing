@@ -38,7 +38,7 @@ using namespace ogdf;
 #define PRINT_CROSSING(os, c) (os) << " (" << (c).first->source()->index() << "," << (c).first->target()->index() << ")x(" << (c).second->source()->index() << "," << (c).second->target()->index() << ")"
 #define PRINT_CROSSING_ORDER(os, o) (os) << " (" << get<0>(o)->source()->index() << "," << get<0>(o)->target()->index() << "),(" << get<1>(o)->source()->index() << "," << get<1>(o)->target()->index() << "),(" << get<2>(o)->source()->index() << "," << get<2>(o)->target()->index() << ")"
 
-#define LOG_REALIZE_DEBUG_ENABLED 0
+#define LOG_REALIZE_DEBUG_ENABLED 1
 #define LOG_LEVEL_REALIZE_ERROR error
 #define LOG_KURATOWSKI_DEBUG_ENABLED 0
 #define LOG_LEVEL_KURATOWSKI_ERROR error
@@ -472,7 +472,7 @@ void OOCMCrossingMinimization::realize(
 				s << "]";
 #endif
 			}
-			reverse(fx2.begin(), fx2.end());
+			//reverse(fx2.begin(), fx2.end()); //not needed anymore when using G.insertCrossing(...)
 			if (!fx1.empty()) {
 				crossingMap.emplace(ef1, fx1); 
 			}

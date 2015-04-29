@@ -288,21 +288,6 @@ void RomeMinimization() {
 	cout << " Loaded and saved" << endl;
 }
 
-
-Graph createRandomNonPlanarGraph(int n) {
-	GraphGenerator gen;
-	BoyerMyrvold bm;
-	int m = n;
-	while (true) {
-		Graph G = *gen.createRandomGraph(n, m);
-		if (bm.isPlanar(G)) {
-			m++;
-		} else {
-			return G;
-		}
-	}
-}
-
 void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 {
 	assert(GC.consistencyCheck());
@@ -345,39 +330,12 @@ void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 	}
 }
 
-void Test_SimplificationDeg12() {
-	Graph G = createRandomNonPlanarGraph(20);
-
-	const GraphCopy testCopy (G);
-	AssertGraphEquality(G, testCopy);
-	const GraphCopy testCopy2 (testCopy);
-	AssertGraphEquality(G, testCopy2);
-	const GraphCopy testCopy3 (testCopy2);
-	AssertGraphEquality(G, testCopy3);
-
-	SimplificationDeg12 s (G);
-	const GraphCopy& GC = s.getSimplifiedGraph();
-
-	int ndif = G.numberOfNodes() - GC.numberOfNodes();
-	assert(ndif > 0);
-	int mdif = G.numberOfEdges() - GC.numberOfEdges();
-	assert(ndif == mdif);
-
-	GraphCopy G2 = s.reverseSimplification(GC);
-	AssertGraphEquality(G, G2);
-
-	const GraphCopy GC2 (GC);
-	const GraphCopy GC3 (GC2);
-	GraphCopy G3 = s.reverseSimplification(GC3);
-	AssertGraphEquality(G, G3);
-}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	TestMinimization();
+	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
-	//RomeMinimization();
-	//Test_SimplificationDeg12();
+	RomeMinimization();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();

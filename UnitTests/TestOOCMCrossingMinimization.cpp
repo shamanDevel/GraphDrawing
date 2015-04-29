@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "CppUnitTest.h"
 #include "CppUnitTestAssert.h"
+#include "TestUtils.h"
 
 #include <cstdlib>
 #include <sstream>
@@ -35,6 +36,11 @@ namespace UnitTests
 	TEST_CLASS(TestOOCMCrossingMinimization)
 	{
 	public:
+
+		TEST_CLASS_INITIALIZE(Initialize)
+		{
+			RegisterDebugBoostSink();
+		}
 
 		TEST_METHOD(OOCM_TestCreateVariables)
 		{
@@ -379,72 +385,7 @@ namespace UnitTests
 			return r;
 		}
 
-		static void SaveGraph(const Graph& G, const char* prefix)
-		{
-#ifdef SAVE_GRAPHS
-
-			int numNodes = G.numberOfNodes();
-			int numEdges = G.numberOfEdges();
-			//converter
-			ogdf::GraphAttributes GA(G, 
-				ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
-				| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
-				| ogdf::GraphAttributes::nodeColor );
-			SList<node> nodes;
-			G.allNodes(nodes);
-			for (node n : nodes) {
-				stringstream s;
-				s << n->index();
-				GA.labelNode(n) = s.str().c_str();
-			}
-
-			//layout
-			BoyerMyrvold bm;
-			bool planar = bm.isPlanar(G);
-			if (planar) {
-#if 0
-				//use planar layout
-				MixedModelLayout l;
-				l.call(GA);
-#else
-				//use spring layout
-				ogdf::FMMMLayout fmmm;
-				fmmm.useHighLevelOptions(true);
-				fmmm.unitEdgeLength(25.0); 
-				fmmm.newInitialPlacement(true);
-				fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
-				fmmm.call(GA);
-#endif
-			} else {
-#if 1
-				//use spring layout
-				ogdf::FMMMLayout fmmm;
-				fmmm.useHighLevelOptions(true);
-				fmmm.unitEdgeLength(10.0 * sqrt(numEdges)); 
-				fmmm.newInitialPlacement(true);
-				fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
-				fmmm.call(GA);
-#else
-				ogdf::StressMajorization sm;
-				sm.call(GA);
-#endif
-			}
-
-			//save
-			stringstream s;
-			s << "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\graphs\\";
-			s << prefix;
-			s << "_n";
-			s << numNodes;
-			s << "_e";
-			s << numEdges;
-			if (planar) {
-				s << "_planar";
-			}
-			s << ".svg";
-			GA.writeSVG(s.str().c_str());
-#endif
-		}
+		
 
 	};
 }
