@@ -14,6 +14,9 @@ using namespace ogdf;
 ///			The removal of degree 2 nodes can lead to multi-edges.
 ///			Therefore, this class also returns a map that maps the edges to their edge weight/cost.
 ///
+///			It is assumend that the input graph is simple, connected and non-planar.
+///			The simplified graph will also be simple, connected and non-planar.
+///
 ///			By contract, every preprocessing step is only allowed to remove nodes and edges.
 ///			The final Minimization Step then only adds crossings. 
 ///			Therefore, a regular node (no crossing node) can always be identified over its original node.
@@ -44,8 +47,13 @@ private:
 
 	void removeDeg1Nodes();
 	void reverseDeg1Nodes(GraphCopy& C) const;
+	void mergeDeg2Nodes();
+	void unmergeDeg2Nodes(GraphCopy& C) const;
+	void followDeg2Path(node last, node current, vector<node>& nodes);
 
-	unordered_map<node, vector<node> > deg1Nodes;
+	unordered_map<node, vector< pair<node, edge> > > deg1Nodes;
+	unordered_multimap<edge, vector<edge> > deg2Edges;
+	unordered_multimap<node, vector<edge> > deg2Circles;
 };
 
 }

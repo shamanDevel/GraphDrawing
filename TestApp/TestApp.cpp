@@ -330,12 +330,48 @@ void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 	}
 }
 
+void Test_SimplificationDeg12_K5() {
+	//Define a test graph that collapses to a K5
+	Graph G;
+	vector<node> nodes(41);
+	for (int i=0; i<=40; ++i) nodes[i] = G.newNode();
+	int edges[52][2] = {
+		{0,7}, {0,6}, {0,9}, {0,18}, {0,19}, {0,35},
+		{1,8}, {1,9}, {1,26}, {1,10}, {1,20}, {1,16}, {1,28},
+		{2,11}, {2,18}, {2,12}, {2,22}, {2,25}, {2,17},
+		{3,14}, {3,19}, {3,20}, {3,13}, {3,21}, {3,23},
+		{4,35}, {4,5}, {4,16}, {4,17}, {4,15},
+		{5,6}, {7,8}, {10,11}, {12,13}, {14,15},
+		{21,22}, {23,24}, {24,25},
+		{26,31}, {26,27}, {27,28}, {28,29}, {30,31}, {31,32},
+		{33,34}, {33,35}, {34,35}, {33,36}, {33,37}, {37,38}, {37,39}, {37,40}
+	};
+	for (int i=0; i<52; ++i) {
+		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+	}
+	SaveGraph(G, "BlownK5");
+
+	SimplificationDeg12 s (G);
+	const GraphCopy& GC = s.getSimplifiedGraph();
+	SaveGraph(GC, "SimplifiedK5");
+
+	//GC now should be a K5 with nodes 0..4
+	assert(5 == GC.numberOfNodes());
+	assert(10 == GC.numberOfEdges());
+	node u;
+	forall_nodes(u, GC) {
+		assert(4 == u->degree());
+	}
+	assert(isConnected(GC));
+	assert(isSimpleUndirected(GC));
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
-	RomeMinimization();
+	//RomeMinimization();
+	Test_SimplificationDeg12_K5();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();
