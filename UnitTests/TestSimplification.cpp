@@ -105,8 +105,6 @@ namespace UnitTests
 
 			int ndif = G.numberOfNodes() - GC.numberOfNodes();
 			Assert::IsTrue(ndif > 0, L"No nodes deleted", LINE_INFO());
-			int mdif = G.numberOfEdges() - GC.numberOfEdges();
-			Assert::AreEqual(ndif, mdif, L"Count of removed edges does not match count of removed nodes", LINE_INFO());
 
 			GraphCopy G2 = s.reverseSimplification(GC);
 			AssertGraphEquality(G, G2);
@@ -128,22 +126,42 @@ namespace UnitTests
 				{26,31}, {26,27}, {27,28}, {28,29}, {30,31}, {31,32},
 				{33,34}, {33,35}, {34,35}, {33,36}, {33,37}, {37,38}, {37,39}, {37,40}
 			};
+			int edgeCosts[10][3] = {
+				{0,1,2}, {0,2,1}, {0,3,1}, {0,4,2},
+				{1,2,1}, {1,3,1}, {1,4,1},
+				{2,3,3}, {2,4,1}, {3,4,1}
+			};
 			for (int i=0; i<52; ++i) {
 				G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 			}
 
 			SimplificationDeg12 s (G);
 			const GraphCopy& GC = s.getSimplifiedGraph();
+			const unordered_map<edge, int>& edgeCostMap = s.getEdgeCosts();
+			const GraphCopy& GC2 (GC);
 
 			//GC now should be a K5 with nodes 0..4
-			Assert::AreEqual(5, GC.numberOfNodes(), L"Wrong node count", LINE_INFO());
-			Assert::AreEqual(10, GC.numberOfEdges(), L"Wrong edge count", LINE_INFO());
+			Assert::AreEqual(5, GC2.numberOfNodes(), L"Wrong node count", LINE_INFO());
+			Assert::AreEqual(10, GC2.numberOfEdges(), L"Wrong edge count", LINE_INFO());
 			node u;
-			forall_nodes(u, GC) {
+			forall_nodes(u, GC2) {
 				Assert::AreEqual(4, u->degree());
 			}
-			Assert::IsTrue(isConnected(GC));
-			Assert::IsTrue(isSimpleUndirected(GC));
+			Assert::IsTrue(isConnected(GC2));
+			Assert::IsTrue(isSimpleUndirected(GC2));
+			for (int i=0; i<10; ++i) {
+				edge e = GC2.searchEdge(GC2.copy(nodes[edgeCosts[i][0]]), GC.copy(nodes[edgeCosts[i][1]]));
+				Assert::IsNotNull(e);
+				int costExp = edgeCosts[i][2];
+				int costActual = edgeCostMap.at(GC2.original(e));
+				Assert::AreEqual(costExp, costActual, L"Wrong edge cost", LINE_INFO());
+			}
+
+			const GraphCopy GC3 (GC2);
+			GraphCopy GC4 = s.reverseSimplification(GC3);
+
+			//Test it
+			AssertGraphEquality(G, GC4);
 		}
 
 		static int RandomInt(int min, int max) 

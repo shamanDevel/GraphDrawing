@@ -3,11 +3,16 @@
 #include <queue>
 #include <cassert>
 #include <unordered_set>
+#include <sstream>
+#include <boost/log/trivial.hpp>
 
 namespace shaman {
 
 using namespace std;
 using namespace ogdf;
+
+#define LOG(level) BOOST_LOG_TRIVIAL(level)
+#define LOG_LEVEL_DEBUG debug
 
 SimplificationDeg12::SimplificationDeg12(const GraphCopy& originalGraph)
 	: simplifiedGraph(originalGraph)
@@ -15,7 +20,7 @@ SimplificationDeg12::SimplificationDeg12(const GraphCopy& originalGraph)
 	//initialize edge costs
 	edge e;
 	forall_edges(e, simplifiedGraph)
-		edgeCosts[e] = 1;
+		edgeCosts[simplifiedGraph.original(e)] = 1;
 
 	//simplify graph
 	removeDeg1Nodes();
@@ -36,6 +41,7 @@ void SimplificationDeg12::removeDeg1Nodes()
 	while (!queue.empty()) {
 		node v = queue.front(); queue.pop();
 		assert (v->degree() == 1);
+		int id = v->index();
 		node u = v->firstAdj()->twinNode();
 		//remove node v and the edge (u,v)
 		edge e = v->firstAdj()->theEdge();
@@ -45,6 +51,7 @@ void SimplificationDeg12::removeDeg1Nodes()
 		simplifiedGraph.delCopy(v);
 		if (u->degree() == 1)
 			queue.push(u);
+		LOG(LOG_LEVEL_DEBUG) << "node " << id << " of degree 1, connected to " << u->index() << ", is removed";
 	}
 }
 
@@ -71,8 +78,10 @@ void SimplificationDeg12::reverseDeg1Nodes(GraphCopy& C) const
 			for (pair<node, edge> ou : it->second) {
 				//add new node
 				node u = C.newNode(ou.first);
-				edge e = C.newEdge(v, u); //TODO: add link to original node
-				C.setEdge(ou.second, e);
+				LOG(LOG_LEVEL_DEBUG) << "node " << u->index() << " of degree 1, connected to " << v->index() << ", is re-added";
+				//edge e = C.newEdge(v, u);
+				//C.setEdge(ou.second, e);
+				edge e = newEdge(C, ou.second, v, u);
 				queue.push(u);
 			}
 		}
@@ -99,6 +108,16 @@ void SimplificationDeg12::mergeDeg2Nodes()
 		followDeg2Path(v, v->lastAdj()->twinNode(), nodes2);
 		node last1 = nodes1[nodes1.size() - 1];
 		node last2 = nodes2[nodes2.size() - 1];
+
+		stringstream str;
+		str << "path of degree 2 nodes starting at " << last1->index() << " going to " << last2->index() << " removed:";
+		for (int i=nodes1.size()-2; i>=0; --i)
+			str << " " << nodes1[i]->index();
+		str << " " << v->index();
+		for (int i=0; i<nodes2.size()-1; ++i)
+			str << " " << nodes2[i]->index();
+		LOG(LOG_LEVEL_DEBUG) << str.str();
+
 		//remove these edges from the set of deg 2 nodes
 		for (vector<node>::iterator it = nodes1.begin(); it!=nodes1.end()-1; ++it) {
 			int i = deg2Nodes.erase(*it);
@@ -165,13 +184,19 @@ void SimplificationDeg12::mergeDeg2Nodes()
 				deg2Nodes.insert(last1); //add it
 			}
 		} else {
+			node olast1 = simplifiedGraph.original(last1);
+			node olast2 = simplifiedGraph.original(last2);
+			assert (olast1 != NULL);
+			assert (olast2 != NULL);
 			edge e = simplifiedGraph.searchEdge(last1, last2);
 			if (e != NULL) {
 				//Case 2:
 				edge oe = simplifiedGraph.original(e);
 				assert (oe != NULL);
-				edgeCosts[e]++;
-				deg2Edges.emplace(oe, edges);
+				edgeCosts[oe]++;
+				deg2Edges.emplace(minmax(olast1, olast2), edges);
+				LOG(LOG_LEVEL_DEBUG) << "Reuse edge (" << e->source()->index() << "," << e->target()->index() << ")"
+					<< " linked to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
 			} else {
 				//Case 3:
 				edge oe = edges[0];
@@ -184,10 +209,27 @@ void SimplificationDeg12::mergeDeg2Nodes()
 					e = simplifiedGraph.newEdge(oe, last1, last2->lastAdj());
 				else
 					e = simplifiedGraph.newEdge(oe, last2, last1->lastAdj());
-				deg2Edges.emplace(eo, edges);
+				oe = simplifiedGraph.original(e);
+				assert (oe != NULL);
+				edgeCosts[oe] = 1;
+				deg2Edges.emplace(minmax(olast1, olast2), edges);
+				LOG(LOG_LEVEL_DEBUG) << "Create new edge (" << e->source()->index() << "," << e->target()->index() << ")"
+					<< " and link to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
 			}
 		}
+
 	} //while (!deg2Nodes.empty())
+
+	LOG(info) << "count of removed circles: " << deg2Circles.size();
+	LOG(info) << "count of removed paths: " << deg2Edges.size();
+	stringstream str;
+	str << "deg2Edges contains:";
+	for (const auto& entry : deg2Edges) {
+		str << endl;
+		str << "  (" << entry.first.first->index() << "," << entry.first.second->index() << ")";
+		str << " => path of length " << entry.second.size();
+	}
+	LOG(LOG_LEVEL_DEBUG) << str.str();
 }
 void SimplificationDeg12::followDeg2Path(node last, node current, vector<node>& nodes)
 {
@@ -208,7 +250,122 @@ void SimplificationDeg12::followDeg2Path(node last, node current, vector<node>& 
 }
 void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 {
+	SList<node> nodes;
+	C.allNodes(nodes);
+	SList<edge> edges;
+	C.allEdges(edges);
+	int reversedCircles = 0;
+	int reversedPaths = 0;
 
+	while (!nodes.empty() || !edges.empty())
+	{
+		while (!nodes.empty()) {
+			//Undo Case 1 (circles around a node)
+			const node n =  nodes.front(); nodes.popFront();
+			auto itPair = deg2Circles.equal_range(C.original(n));
+			for (auto it = itPair.first; it != itPair.second; ++it) {
+				const vector<edge>& circle = it->second;
+				assert (circle.size() >= 2);
+
+				stringstream str;
+				str << "Reverse circle of degree 2 nodes around node " << n->index() << ":";
+				for (edge e : circle)
+					str << " (" << e->source()->index() << "," << e->target()->index() << ")";
+				LOG(LOG_LEVEL_DEBUG) << str.str();
+
+				node u = n;
+				node v = NULL;
+				for (int i=0; i<circle.size()-1; ++i) {
+					edge oe = circle[i];
+					node ov = oe->target();
+					if (ov == C.original(u)) ov = oe->source();
+					v = C.newNode(ov);
+					nodes.pushBack(v);
+					edge e = newEdge(C, oe, u, v);
+					edges.pushBack(e);
+					u = v;
+				}
+				edges.pushBack(newEdge(C, circle[circle.size() - 1], v, n));
+
+				reversedCircles++;
+			}
+		}
+
+		while (!edges.empty()) {
+			//Undo Case 2 and 3
+			const edge e = edges.front(); edges.popFront();
+			const pair<node, node> key = minmax(C.original(e->source()), C.original(e->target()));
+			auto itPair = deg2Edges.equal_range(key);
+			if (itPair.first == itPair.second) continue;
+			node s = e->source();
+			node t = e->target();
+			node os = C.original(s);
+			node ot = C.original(t);
+			for (auto it = itPair.first; it != itPair.second; ++it) {
+				const vector<edge>& path = it->second;
+				assert (path.size() >= 2);
+
+				stringstream str;
+				str << "Reverse path of degree 2 nodes between (" << s->index() << "," 
+					<< t->index() << "):";
+				for (edge f : path)
+					str << " (" << f->source()->index() << "," << f->target()->index() << ")";
+				LOG(LOG_LEVEL_DEBUG) << str.str();
+
+				if (path[0]->source() != os && path[0]->target() != os)
+					swap(os, ot);
+				node u = C.copy(os);
+				node v = NULL;
+				for (int i=0; i<path.size()-1; ++i) {
+					edge oe = path[i];
+
+					if (C.chain(oe).size() != 0) {
+						//Can only happen once in Case 3, this edge is used as original-edge link, delete old copy
+						C.delCopy(C.copy(oe));
+					}
+
+					node ov = oe->target();
+					if (ov == C.original(u)) ov = oe->source();
+					v = C.newNode(ov);
+					nodes.pushBack(v);
+					edge e = newEdge(C, oe, u, v);
+					edges.pushBack(e);
+					u = v;
+				}
+				edge ne = newEdge(C, path[path.size() - 1], v, C.copy(ot));
+				edges.pushBack(ne);
+
+				reversedPaths++;
+			}
+		}
+	}
+	LOG(info) << "Count of reversed circles: " << reversedCircles;
+	LOG(info) << "Count of reversed paths: " << reversedPaths;
+}
+edge SimplificationDeg12::newEdge(GraphCopy& C, edge origE, node copyU, node copyV) const
+{
+	if (C.copy(origE->source()) == copyU) {
+		if (copyV->lastAdj() != NULL) {
+			return C.newEdge(origE, copyU, copyV->lastAdj());
+		}
+	}
+	if (C.copy(origE->target()) == copyV) {
+		if (copyU->lastAdj() != NULL) {
+			return C.newEdge(origE, copyU->lastAdj(), copyV);
+		}
+	}
+	if (C.copy(origE->source()) == copyV) {
+		if (copyU->lastAdj() != NULL) {
+			return C.newEdge(origE, copyV, copyU->lastAdj());
+		}
+	}
+	if (C.copy(origE->target()) == copyU) {
+		if (copyV->lastAdj() != NULL) {
+			return C.newEdge(origE, copyV->lastAdj(), copyU);
+		}
+	}
+	assert (false);
+	return NULL;
 }
 
 const GraphCopy& SimplificationDeg12::getSimplifiedGraph() const

@@ -50,9 +50,21 @@ private:
 	void mergeDeg2Nodes();
 	void unmergeDeg2Nodes(GraphCopy& C) const;
 	void followDeg2Path(node last, node current, vector<node>& nodes);
+	edge newEdge(GraphCopy& C, edge origE, node copyU, node copyV) const;
+
+	struct nodePairHash {
+	public:
+		std::size_t operator()(const pair<node, node> &nodes) const
+		{
+			size_t hash = nodes.first->index();
+			__asm rol hash,16
+			hash |= nodes.second->index();
+			return hash;
+		}
+	};
 
 	unordered_map<node, vector< pair<node, edge> > > deg1Nodes;
-	unordered_multimap<edge, vector<edge> > deg2Edges;
+	unordered_multimap<pair<node, node>, vector<edge>, nodePairHash > deg2Edges;
 	unordered_multimap<node, vector<edge> > deg2Circles;
 };
 

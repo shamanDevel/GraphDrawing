@@ -45,7 +45,7 @@ int RandomInt(int min, int max)
 	return r;
 }
 
-void SaveGraph(const Graph& G, const char* prefix)
+void SaveGraph(const GraphCopy& G, const char* prefix)
 {
 #ifdef SAVE_GRAPHS
 
@@ -55,14 +55,19 @@ void SaveGraph(const Graph& G, const char* prefix)
 	ogdf::GraphAttributes GA(G, 
 		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
 		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
-		| ogdf::GraphAttributes::nodeColor );
+		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType );
 	SList<node> nodes;
 	G.allNodes(nodes);
 	for (node n : nodes) {
-		stringstream s;
-		s << n->index();
-		GA.labelNode(n) = s.str().c_str();
-		GA.width(n) = GA.height(n) = 10;
+		if (G.isDummy(n)) {
+			GA.type(n) = Graph::NodeType::dummy;
+			GA.width(n) = GA.height(n) = 3;
+		} else {
+			stringstream s;
+			s << G.original(n)->index();
+			GA.labelNode(n) = s.str().c_str();
+			GA.width(n) = GA.height(n) = 15;
+		}
 	}
 
 	//layout
@@ -349,7 +354,7 @@ void Test_SimplificationDeg12_K5() {
 	for (int i=0; i<52; ++i) {
 		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 	}
-	SaveGraph(G, "BlownK5");
+	SaveGraph(GraphCopy(G), "BlownK5");
 
 	SimplificationDeg12 s (G);
 	const GraphCopy& GC = s.getSimplifiedGraph();
@@ -364,6 +369,14 @@ void Test_SimplificationDeg12_K5() {
 	}
 	assert(isConnected(GC));
 	assert(isSimpleUndirected(GC));
+
+	//reverse simplificatoin
+	const GraphCopy GC2 (GC);
+	GraphCopy GC3 = s.reverseSimplification(GC2);
+	SaveGraph(GC3, "ReversedK5");
+
+	//Test it
+	AssertGraphEquality(G, GC3);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
