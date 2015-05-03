@@ -194,7 +194,7 @@ void SimplificationDeg12::mergeDeg2Nodes()
 				edge oe = simplifiedGraph.original(e);
 				assert (oe != NULL);
 				edgeCosts[oe]++;
-				deg2Edges.emplace(minmax(olast1, olast2), edges);
+				deg2Edges.emplace(oe, edges);
 				LOG(LOG_LEVEL_DEBUG) << "Reuse edge (" << e->source()->index() << "," << e->target()->index() << ")"
 					<< " linked to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
 			} else {
@@ -212,7 +212,8 @@ void SimplificationDeg12::mergeDeg2Nodes()
 				oe = simplifiedGraph.original(e);
 				assert (oe != NULL);
 				edgeCosts[oe] = 1;
-				deg2Edges.emplace(minmax(olast1, olast2), edges);
+				deg2Edges.emplace(oe, edges);
+				deg2Case3Edges.insert(oe);
 				LOG(LOG_LEVEL_DEBUG) << "Create new edge (" << e->source()->index() << "," << e->target()->index() << ")"
 					<< " and link to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
 			}
@@ -226,7 +227,7 @@ void SimplificationDeg12::mergeDeg2Nodes()
 	str << "deg2Edges contains:";
 	for (const auto& entry : deg2Edges) {
 		str << endl;
-		str << "  (" << entry.first.first->index() << "," << entry.first.second->index() << ")";
+		str << "  (" << entry.first->source()->index() << "," << entry.first->target()->index() << ")";
 		str << " => path of length " << entry.second.size();
 	}
 	LOG(LOG_LEVEL_DEBUG) << str.str();
@@ -256,6 +257,7 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 	C.allEdges(edges);
 	int reversedCircles = 0;
 	int reversedPaths = 0;
+	unordered_multimap<edge, vector<edge> > deg2EdgesCopy = deg2Edges;
 
 	while (!nodes.empty() || !edges.empty())
 	{
@@ -294,17 +296,33 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 		while (!edges.empty()) {
 			//Undo Case 2 and 3
 			const edge e = edges.front(); edges.popFront();
+			edge oe = C.original(e);
+			assert (oe != NULL);
+			if (C.chain(oe).size() > 1) {
+				LOG(debug) << "Edge (" << oe->source()->index() << "," << oe->target()->index() 
+					<< ") splitted by introducing a crossing";
+				//List<edge> chain = C.chain(oe);
+				//for (auto it = chain.begin(); it != chain.end(); ++it) {
+				//	/*remove(edges.begin(), edges.end(), *it);*/
+				//	for (auto it2 = edges.begin(); it2 != edges.end(); ++it2) {
+				//		auto it3 = it2;
+				//		++it3;
+				//		if (it3 != edges.end() && *it3 == *it) {
+				//			edges.delSucc(it2);
+				//			LOG(debug) << "  Ignore (" << C.original((*it)->source())->index() 
+				//				<< "," << C.original((*it)->target())->index() << ")";
+				//			break;
+				//		}
+				//	}
+				//}
+			}
 			node s = e->source();
 			node t = e->target();
 			node os = C.original(s);
 			node ot = C.original(t);
-			if (os==NULL || ot==NULL) {
-				LOG(debug) << "Dummy node found";
-				//TODO: search original edge
-			}
-			const pair<node, node> key = minmax(os, ot);
-			auto itPair = deg2Edges.equal_range(key);
+			auto itPair = deg2EdgesCopy.equal_range(oe);
 			if (itPair.first == itPair.second) continue;
+			bool deleted = false;
 			for (auto it = itPair.first; it != itPair.second; ++it) {
 				const vector<edge>& path = it->second;
 				assert (path.size() >= 2);
@@ -323,9 +341,11 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 				for (int i=0; i<path.size()-1; ++i) {
 					edge oe = path[i];
 
-					if (C.chain(oe).size() != 0) {
+					if (!deleted && deg2Case3Edges.count(oe)>0) {
 						//Can only happen once in Case 3, this edge is used as original-edge link, delete old copy
-						C.delCopy(C.copy(oe));
+						int count = C.chain(oe).size();
+						C.delCopy(e);
+						deleted = true;
 					}
 
 					node ov = oe->target();
@@ -336,11 +356,12 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 					edges.pushBack(e);
 					u = v;
 				}
-				edge ne = newEdge(C, path[path.size() - 1], v, C.copy(ot));
+				edge ne = newEdge(C, path[path.size() - 1], v, ot==NULL ? t : C.copy(ot));
 				edges.pushBack(ne);
 
 				reversedPaths++;
 			}
+			deg2EdgesCopy.erase(itPair.first, itPair.second);
 		}
 	}
 	LOG(info) << "Count of reversed circles: " << reversedCircles;

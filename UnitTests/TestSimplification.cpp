@@ -173,6 +173,8 @@ namespace UnitTests
 
 			//reverse simplification
 			GraphCopy GC6 = s.reverseSimplification(GC5);
+			BoyerMyrvold bm;
+			Assert::IsTrue(bm.isPlanar(GC6));
 		}
 
 		static int RandomInt(int min, int max) 

@@ -335,7 +335,7 @@ edge GraphCopy::newEdge(edge eOrig)
 edge GraphCopy::newEdge(edge eOrig, adjEntry adjSrc, node w)
 {
 	OGDF_ASSERT(eOrig != 0 && eOrig->graphOf() == m_pGraph);
-	OGDF_ASSERT(m_eCopy[eOrig].empty()); // no support for edge splitting!
+	//OGDF_ASSERT(m_eCopy[eOrig].empty()); // no support for edge splitting!
 	OGDF_ASSERT(w == m_vCopy[eOrig->target()]);
 
 	edge e = Graph::newEdge(adjSrc, w);
@@ -347,7 +347,7 @@ edge GraphCopy::newEdge(edge eOrig, adjEntry adjSrc, node w)
 edge GraphCopy::newEdge(edge eOrig, node v, adjEntry adjTgt)
 {
 	OGDF_ASSERT(eOrig != 0 && eOrig->graphOf() == m_pGraph);
-	OGDF_ASSERT(m_eCopy[eOrig].empty()); // no support for edge splitting!
+	//OGDF_ASSERT(m_eCopy[eOrig].empty()); // no support for edge splitting!
 	OGDF_ASSERT(v == m_vCopy[eOrig->source()]);
 
 	edge e = Graph::newEdge(v, adjTgt);
@@ -537,8 +537,19 @@ void GraphCopy::delCopy(edge e)
 	delEdge(e);
 	if (eOrig == 0)	return;
 
-	OGDF_ASSERT(m_eCopy[eOrig].size() == 1);
-	m_eCopy[eOrig].clear();
+	//OGDF_ASSERT(m_eCopy[eOrig].size() == 1);
+	//m_eCopy[eOrig].clear();
+
+	List<edge>& chain = m_eCopy[eOrig];
+	bool found = false;
+	for (auto it = chain.begin(); it != chain.end(); ++it) {
+		if (*it == e) {
+			chain.del(it);
+			found = true;
+			break;
+		}
+	}
+	OGDF_ASSERT(found);
 }
 
 

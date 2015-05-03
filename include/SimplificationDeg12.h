@@ -3,6 +3,7 @@
 #include <ogdf_include.h>
 #include <ogdf/basic/GraphCopy.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace shaman {
@@ -64,7 +65,9 @@ private:
 	};
 
 	unordered_map<node, vector< pair<node, edge> > > deg1Nodes;
-	unordered_multimap<pair<node, node>, vector<edge>, nodePairHash > deg2Edges;
+	//unordered_multimap<pair<node, node>, vector<edge>, nodePairHash > deg2Edges;
+	unordered_multimap<edge, vector<edge> > deg2Edges;
+	unordered_set<edge> deg2Case3Edges;
 	unordered_multimap<node, vector<edge> > deg2Circles;
 };
 

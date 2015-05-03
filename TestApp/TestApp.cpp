@@ -342,6 +342,7 @@ void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 
 void Test_SimplificationDeg12_K5() {
 	//Define a test graph that collapses to a K5
+	BoyerMyrvold bm;
 	Graph G;
 	vector<node> nodes(41);
 	for (int i=0; i<=40; ++i) nodes[i] = G.newNode();
@@ -359,6 +360,7 @@ void Test_SimplificationDeg12_K5() {
 	for (int i=0; i<52; ++i) {
 		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 	}
+	assert (!bm.isPlanar(G));
 	SaveGraph(GraphCopy(G), "BlownK5");
 
 	SimplificationDeg12 s (G);
@@ -378,6 +380,19 @@ void Test_SimplificationDeg12_K5() {
 	//reverse simplificatoin
 	const GraphCopy GC2 (GC);
 	GraphCopy GC3 = s.reverseSimplification(GC2);
+	assert (GC3.consistencyCheck());
+	edge e;
+	vector<pair<int, int> > edgeList;
+	forall_edges(e, GC3) {
+		edgeList.push_back(make_pair(GC3.original(e->source())->index(), GC3.original(e->target())->index()));
+	}
+	sort(edgeList.begin(), edgeList.end());
+	cout << "Edges:";
+	for (pair<int, int> pii : edgeList) {
+		cout << " (" << pii.first << "," << pii.second << ")";
+	}
+	cout << endl;
+	assert (!bm.isPlanar(GC3));
 	SaveGraph(GC3, "ReversedK5");
 
 	//Test it
@@ -392,6 +407,7 @@ void Test_SimplificationDeg12_K5() {
 
 	//reverse simplification
 	GraphCopy GC6 = s.reverseSimplification(GC5);
+	assert (GC6.consistencyCheck());
 
 	//save
 	SaveGraph(GC6, "ReversedSolvedK5");
