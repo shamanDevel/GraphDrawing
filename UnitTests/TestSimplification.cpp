@@ -11,6 +11,8 @@
 #include <GraphGenerator.h>
 #include <GraphConverter.h>
 #include <CrossingMinimization.h>
+#include <OOCMCrossingMinimization.h>
+#include <MILP_lp_solve.h>
 #include <SimplificationDeg12.h>
 #include <ogdf/planarity/BoyerMyrvold.h>
 #include <ogdf/basic/simple_graph_alg.h>
@@ -110,7 +112,7 @@ namespace UnitTests
 			AssertGraphEquality(G, G2);
 		}
 
-		TEST_METHOD(Test_SimplificationDeg12_K5) {
+		TEST_METHOD(Test_SimplificationDeg12_K5_1) {
 			//Define a test graph that collapses to a K5
 			Graph G;
 			vector<node> nodes(41);
@@ -162,6 +164,15 @@ namespace UnitTests
 
 			//Test it
 			AssertGraphEquality(G, GC4);
+
+			//Now solve the small graph
+			OOCMCrossingMinimization cm (new MILP_lp_solve());
+			CrossingMinimization::solve_result_t result = cm.solve(GC, edgeCostMap);
+			Assert::IsTrue(result, L"Unable to solve K5", LINE_INFO());
+			GraphCopy GC5 = result->first;
+
+			//reverse simplification
+			GraphCopy GC6 = s.reverseSimplification(GC5);
 		}
 
 		static int RandomInt(int min, int max) 

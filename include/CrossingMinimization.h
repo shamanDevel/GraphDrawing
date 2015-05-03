@@ -3,6 +3,7 @@
 #include <utility>
 #include <boost/optional.hpp>
 #include <ogdf_include.h>
+#include <unordered_map>
 
 namespace shaman {
 
@@ -12,6 +13,7 @@ public:
 	virtual ~CrossingMinimization() {}
 
 	typedef boost::optional< std::pair<ogdf::GraphCopy, unsigned int> > solve_result_t;
+	typedef std::unordered_map<ogdf::edge, int> edge_cost_t;
 
 	///	\brief	Solves the crossing problem to optimum.
 	///			Input: the original graph, simple and connected
@@ -19,8 +21,9 @@ public:
 	///				If the problem could not be solved, the optional is empty.
 	///
 	///	\param	originalG	The original graph
+	///	\param	edgeCosts	Additional costs attached to edges. The edges must be edges in the source graph (originalGraph.original()).
 	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
-	virtual solve_result_t solve(const ogdf::Graph& originalGraph) = 0;
+	virtual solve_result_t solve(const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts) = 0;
 
 	// Known bounds for the crossing number
 

@@ -23,7 +23,7 @@ public:
 	OOCMCrossingMinimization(MILP* lp);
 	virtual ~OOCMCrossingMinimization(void);
 
-	virtual solve_result_t solve(const ogdf::Graph& originalGraph);
+	virtual solve_result_t solve(const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts);
 
 public: //only for unit tests
 
@@ -60,11 +60,12 @@ public: //only for unit tests
 	///			The first outCrossings.size() elements of variableAssignment contain the assignment of the variables
 	///			described in outCrossings. The next (and last) outCrossingOrders.size() elements contain
 	///			the assignment of the variables described in outCrossingOrders.
-	void realize(ogdf::GraphCopy& G, 
+	void realize(const ogdf::GraphCopy& originalG, ogdf::GraphCopy& G, 
 		const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap,
 		const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes);
 
-	bool setObjectiveFunction(const vector<crossing>& crossings, MILP* lp);
+	bool setObjectiveFunction(const vector<crossing>& crossings, MILP* lp, 
+		const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts);
 
 	bool addCrossingNumberConstraints(const vector<crossing>& crossings, int crLower, int crUpper, MILP* lp);
 

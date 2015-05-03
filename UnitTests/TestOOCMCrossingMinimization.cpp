@@ -102,7 +102,7 @@ namespace UnitTests
 					cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 					unordered_map<node, int> crossingNodes;
 					GraphCopy g2 (g);
-					cm.realize(g2, crossings, crossingOrdersMap, assignment, crossingNodes);
+					cm.realize(g, g2, crossings, crossingOrdersMap, assignment, crossingNodes);
 					int n2 = g2.numberOfNodes();
 					int m2 = g2.numberOfEdges();
 
@@ -124,7 +124,8 @@ namespace UnitTests
 			vector<bool> assignment;
 
 			//Make the K6 planar
-			Graph K6 = *gen.createRandomGraph(6, 6*(6-1)/2);
+			Graph G = *gen.createRandomGraph(6, 6*(6-1)/2);
+			GraphCopy K6 (G);
 			Assert::IsFalse(bm.isPlanar(K6), L"K6 should not be planar", LINE_INFO());
 			cm.createVariables(K6, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
@@ -133,7 +134,7 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K6);
-			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K6 should not be planar", LINE_INFO());
 			//specify crossings between (0,1)x(3,5); (0,4)x(2,3); (1,2)x(4,5)
 			int countOfOnes = 0;
@@ -178,7 +179,7 @@ namespace UnitTests
 			crossingOrdersMap.clear();
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			g = GraphCopy(K6);
-			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(K6, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsTrue(bm.isPlanar(g), L"realized K6 should now be planar", LINE_INFO());
 			Graph k6 = g;
 
@@ -192,10 +193,14 @@ namespace UnitTests
 			}
 
 			//Test if this assignment is also feasible in the lp-model
+			unordered_map<edge, int> edgeCosts;
+			edge e;
+			forall_edges(e, G)
+				edgeCosts[e] = 1;
 			MILP* lp = new MILP_lp_solve();
 			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
 			Logger::WriteMessage("LP initialized.");
-			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
+			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp, K6, edgeCosts), L"unable to set objective function", LINE_INFO());
 			Logger::WriteMessage("Objective function set.");
 			SList<edge> edgeVector;
 			K6.allEdges(edgeVector);
@@ -282,7 +287,8 @@ namespace UnitTests
 				{3,5,2,7,1,6},
 				{3,5,2,6,1,6}
 			};
-			Graph K8 = *gen.createRandomGraph(8, 8*(8-1)/2);
+			Graph G = *gen.createRandomGraph(8, 8*(8-1)/2);
+			GraphCopy K8 (G);
 			Assert::IsFalse(bm.isPlanar(K8), L"K8 should not be planar", LINE_INFO());
 			cm.createVariables(K8, crossings, crossingOrders);
 			assignment.resize(crossings.size() + crossingOrders.size());
@@ -291,7 +297,7 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			unordered_map<node, int> crossingNodes;
 			GraphCopy g (K8);
-			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Assert::IsFalse(bm.isPlanar(g), L"realized K8 should not be planar", LINE_INFO());
 
 			//set variables
@@ -330,7 +336,7 @@ namespace UnitTests
 			cm.createCrossingOrdersMap(crossingOrders, crossingOrdersMap);
 			crossingNodes.clear();
 			g = GraphCopy (K8);
-			cm.realize(g, crossings, crossingOrdersMap, assignment, crossingNodes);
+			cm.realize(K8, g, crossings, crossingOrdersMap, assignment, crossingNodes);
 			Graph k8 = g;
 			Assert::IsTrue(bm.isPlanar(k8), L"realized K8 should now be planar", LINE_INFO());
 
@@ -345,10 +351,14 @@ namespace UnitTests
 			}
 
 			//Test if this assignment is also feasible in the lp-model
+			unordered_map<edge, int> edgeCosts;
+			edge e;
+			forall_edges(e, G)
+				edgeCosts[e] = 1;
 			MILP* lp = new MILP_lp_solve();
 			Assert::IsTrue(lp->initialize(crossings.size() + crossingOrders.size()), L"unable to initialize LP", LINE_INFO());
 			Logger::WriteMessage("LP initialized.");
-			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp), L"unable to set objective function", LINE_INFO());
+			Assert::IsTrue(cm.setObjectiveFunction(crossings, lp, K8, edgeCosts), L"unable to set objective function", LINE_INFO());
 			Logger::WriteMessage("Objective function set.");
 			SList<edge> edgeVector;
 			K8.allEdges(edgeVector);

@@ -130,7 +130,12 @@ void TestMinimization() {
 			Graph g = *gen.createRandomGraph(n, max(n*(n-1)/2, n-1));
 			int m = g.numberOfEdges();
 
-			boost::optional< pair<GraphCopy, unsigned int> > result = cm->solve(g);
+			unordered_map<edge, int> edgeCosts;
+			edge e;
+			forall_edges(e, g)
+				edgeCosts[e] = 1;
+
+			boost::optional< pair<GraphCopy, unsigned int> > result = cm->solve(g, edgeCosts);
 			if (result) {
 				cout << "graph solved, count of crossings: " << result->second << endl;
 				stringstream s;
@@ -377,6 +382,19 @@ void Test_SimplificationDeg12_K5() {
 
 	//Test it
 	AssertGraphEquality(G, GC3);
+
+	//Now solve the small graph
+	OOCMCrossingMinimization cm (new MILP_lp_solve());
+	CrossingMinimization::solve_result_t result = cm.solve(GC, s.getEdgeCosts());
+	assert(result);
+	GraphCopy GC5 = result->first;
+	cout << "Crossing number: " << result->second << endl;
+
+	//reverse simplification
+	GraphCopy GC6 = s.reverseSimplification(GC5);
+
+	//save
+	SaveGraph(GC6, "ReversedSolvedK5");
 }
 
 int _tmain(int argc, _TCHAR* argv[])

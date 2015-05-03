@@ -294,13 +294,17 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 		while (!edges.empty()) {
 			//Undo Case 2 and 3
 			const edge e = edges.front(); edges.popFront();
-			const pair<node, node> key = minmax(C.original(e->source()), C.original(e->target()));
-			auto itPair = deg2Edges.equal_range(key);
-			if (itPair.first == itPair.second) continue;
 			node s = e->source();
 			node t = e->target();
 			node os = C.original(s);
 			node ot = C.original(t);
+			if (os==NULL || ot==NULL) {
+				LOG(debug) << "Dummy node found";
+				//TODO: search original edge
+			}
+			const pair<node, node> key = minmax(os, ot);
+			auto itPair = deg2Edges.equal_range(key);
+			if (itPair.first == itPair.second) continue;
 			for (auto it = itPair.first; it != itPair.second; ++it) {
 				const vector<edge>& path = it->second;
 				assert (path.size() >= 2);

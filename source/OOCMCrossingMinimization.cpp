@@ -57,7 +57,8 @@ OOCMCrossingMinimization::~OOCMCrossingMinimization(void)
 {
 }
 
-OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const Graph& originalGraph)
+OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
+	const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts)
 {
 	//pre-check for planarity
 	if (boyerMyrvold.isPlanar(originalGraph)) {
@@ -85,7 +86,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 		if (!lp->setVariableType(i, MILP::VariableType::Binary))
 			return solve_result_t();
 	}
-	if (!setObjectiveFunction(crossings, lp))
+	if (!setObjectiveFunction(crossings, lp, originalGraph, edgeCosts))
 		return solve_result_t();
 	int crLower = crGLower(n, m);
 	int crUpper = crKnUpper(n);
@@ -135,7 +136,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(const G
 		//realize graph
 		crossingNodes.clear();
 		GraphCopy G (originalGraph);
-		realize(G, crossings, crossingOrderMap, variables, crossingNodes);
+		realize(originalGraph, G, crossings, crossingOrderMap, variables, crossingNodes);
 
 		//check if the graph is now planar
 		SList<KuratowskiWrapper> kuratowski_edges;
@@ -217,7 +218,7 @@ void OOCMCrossingMinimization::createCrossingOrdersMap(
 	}
 }
 
-void OOCMCrossingMinimization::realize(
+void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG, 
 	GraphCopy& G, const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrdersMap,
 	const vector<bool>& variableAssignment, unordered_map<ogdf::node, int>& crossingNodes)
 {	
@@ -317,9 +318,9 @@ void OOCMCrossingMinimization::realize(
 	for (const auto& entry : crossingMap) {
 		vector< pair<edge, int> > ex (entry.second.size());
 		for (int i=0; i<entry.second.size(); ++i) {
-			ex[i] = make_pair(G.copy(entry.second[i].first), entry.second[i].second);
+			ex[i] = make_pair(G.copy(originalG.original(entry.second[i].first)), entry.second[i].second);
 		}
-		crossingMap2.emplace(G.copy(entry.first), ex);
+		crossingMap2.emplace(G.copy(originalG.original(entry.first)), ex);
 	}
 	crossingMap = crossingMap2;
 
@@ -490,12 +491,18 @@ void OOCMCrossingMinimization::realize(
 	return;
 }
 
-bool OOCMCrossingMinimization::setObjectiveFunction(const vector<crossing>& crossings, MILP* lp)
+bool OOCMCrossingMinimization::setObjectiveFunction(
+	const vector<crossing>& crossings, MILP* lp, const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts)
 {
 	vector<MILP::real> row (crossings.size());
 	vector<int> colno (crossings.size());
 	for (unsigned int i=0; i<crossings.size(); ++i) {
-		row[i] = 1; //TODO: edge weight (from preprocessing)
+		edge oe = originalGraph.original(crossings[i].first);
+		edge of = originalGraph.original(crossings[i].second);
+		assert (oe != NULL);
+		assert (of != NULL);
+		int cost = edgeCosts.at(oe) * edgeCosts.at(of);
+		row[i] = cost; 
 		colno[i] = i+1;
 	}
 	bool result = lp->setObjectiveFunction(crossings.size(), &row[0], &colno[0], MILP::Direction::Minimize);
