@@ -188,34 +188,53 @@ void SimplificationDeg12::mergeDeg2Nodes()
 			node olast2 = simplifiedGraph.original(last2);
 			assert (olast1 != NULL);
 			assert (olast2 != NULL);
+
+			int cost = 1;
+			for (edge oe : edges) {
+				cost = max(cost, edgeCosts.at(oe));
+			}
+
 			edge e = simplifiedGraph.searchEdge(last1, last2);
 			if (e != NULL) {
 				//Case 2:
 				edge oe = simplifiedGraph.original(e);
 				assert (oe != NULL);
-				edgeCosts[oe]++;
+				edgeCosts[oe] += cost;
 				deg2Edges.emplace(oe, edges);
 				LOG(LOG_LEVEL_DEBUG) << "Reuse edge (" << e->source()->index() << "," << e->target()->index() << ")"
 					<< " linked to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
 			} else {
 				//Case 3:
-				edge oe = edges[0];
-				node oeSourceCopy = simplifiedGraph.copy(oe->source());
-				assert (oeSourceCopy != NULL);
-				/*edge e = simplifiedGraph.newEdge(last1, last2);
-				simplifiedGraph.setEdge(oe, e);*/
-				edge e;
-				if (oeSourceCopy == last1)
-					e = simplifiedGraph.newEdge(oe, last1, last2->lastAdj());
-				else
-					e = simplifiedGraph.newEdge(oe, last2, last1->lastAdj());
-				oe = simplifiedGraph.original(e);
-				assert (oe != NULL);
-				edgeCosts[oe] = 1;
+				edge e = NULL;
+				edge oe = NULL;
+				for (edge oe2 : edges) {
+					e = newEdge(simplifiedGraph, oe2, last1, last2);
+					if (e != NULL) {
+						oe = oe2;
+						break;
+					}
+				}
+				assert (e != NULL);
+				//node oeSourceCopy = simplifiedGraph.copy(oe->source());
+				//assert (oeSourceCopy != NULL);
+				//if (oeSourceCopy == last1)
+				//	e = simplifiedGraph.newEdge(oe, last1, last2->lastAdj());
+				//else
+				//	e = simplifiedGraph.newEdge(oe, last2, last1->lastAdj());
+				edgeCosts[oe] = cost;
 				deg2Edges.emplace(oe, edges);
 				deg2Case3Edges.insert(oe);
 				LOG(LOG_LEVEL_DEBUG) << "Create new edge (" << e->source()->index() << "," << e->target()->index() << ")"
 					<< " and link to original edge (" << oe->source()->index() << "," << oe->target()->index() << ")";
+			}
+
+			//It can happen that the handle nodes now have degree = 2
+			//TODO: causes bugs in Line 204
+			if (last1->degree() == 2) {
+				deg2Nodes.insert(last1); //add it
+			}
+			if (last2->degree() == 2) {
+				deg2Nodes.insert(last2); //add it
 			}
 		}
 
@@ -353,10 +372,12 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 					v = C.newNode(ov);
 					nodes.pushBack(v);
 					edge e = newEdge(C, oe, u, v);
+					assert (e != NULL);
 					edges.pushBack(e);
 					u = v;
 				}
 				edge ne = newEdge(C, path[path.size() - 1], v, ot==NULL ? t : C.copy(ot));
+				assert (ne != NULL);
 				edges.pushBack(ne);
 
 				reversedPaths++;
@@ -389,7 +410,6 @@ edge SimplificationDeg12::newEdge(GraphCopy& C, edge origE, node copyU, node cop
 			return C.newEdge(origE, copyV->lastAdj(), copyU);
 		}
 	}
-	assert (false);
 	return NULL;
 }
 

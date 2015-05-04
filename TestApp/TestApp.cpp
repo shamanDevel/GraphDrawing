@@ -296,6 +296,31 @@ void RomeMinimization() {
 	GraphConverter::convert(BG, G);
 	SaveGraph(G, d.fileName.c_str());
 	cout << " Loaded and saved" << endl;
+
+	//Now simplify it
+	GraphCopy GC1 (G);
+	SimplificationDeg12 s (GC1);
+	const GraphCopy& GC2 = s.getSimplifiedGraph();
+	cout << "Graph simplified, contains now " << GC2.numberOfNodes() << " nodes and " 
+		<< GC2.numberOfEdges() << " endges" << endl;
+
+	//solve crossing minimization
+	OOCMCrossingMinimization cm (new MILP_lp_solve());
+	CrossingMinimization::solve_result_t result = cm.solve(GC2, s.getEdgeCosts());
+	if (!result) {
+		cerr << "Unable to solve crossing minimization" << endl;
+		return;
+	}
+	GraphCopy GC3 = result->first;
+	cout << "Crossing number: " << result->second << endl;
+
+	GraphCopy GC4 = s.reverseSimplification(GC3);
+	assert (GC4.consistencyCheck());
+	cout << "Reversed Simplification" << endl;
+
+	//save
+	SaveGraph(GC4, (d.fileName + "Solved").c_str());
+	cout << "Graph saved" << endl;
 }
 
 void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
@@ -340,7 +365,7 @@ void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 	}
 }
 
-void Test_SimplificationDeg12_K5() {
+void Test_SimplificationDeg12_K5_1() {
 	//Define a test graph that collapses to a K5
 	BoyerMyrvold bm;
 	Graph G;
@@ -413,12 +438,63 @@ void Test_SimplificationDeg12_K5() {
 	SaveGraph(GC6, "ReversedSolvedK5");
 }
 
+void Test_SimplificationDeg12_K5_2() {
+	//Define a test graph that collapses to a K5
+	Graph G;
+	vector<node> nodes(13);
+	for (int i=0; i<=12; ++i) nodes[i] = G.newNode();
+	int edges[21][2] = {
+		{0,2}, {0,3}, {0,4}, {1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4},
+		{0,5}, {0,6}, {5,7}, {6,7},
+		{7,8}, {7,9}, {8,10}, {9,10},
+		{10,11}, {10,12}, {11,1}, {12,1}
+	};
+	int edgeCosts[10][3] = {
+		{0,1,2}, {0,2,1}, {0,3,1}, {0,4,1},
+		{1,2,1}, {1,3,1}, {1,4,1},
+		{2,3,1}, {2,4,1}, {3,4,1}
+	};
+	for (int i=0; i<21; ++i) {
+		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+	}
+	SaveGraph(G, "BlownEdgeK5");
+
+	SimplificationDeg12 s (G);
+	const GraphCopy& GC = s.getSimplifiedGraph();
+	const unordered_map<edge, int>& edgeCostMap = s.getEdgeCosts();
+	const GraphCopy& GC2 (GC);
+	SaveGraph(GC, "SimplifiedEdgeK5");
+
+	//GC now should be a K5 with nodes 0..4
+	assert(5 == GC2.numberOfNodes());
+	assert(10 == GC2.numberOfEdges());
+	node u;
+	forall_nodes(u, GC2) {
+		assert(4 == u->degree());
+	}
+	assert(isConnected(GC2));
+	assert(isSimpleUndirected(GC2));
+	for (int i=0; i<10; ++i) {
+		edge e = GC2.searchEdge(GC2.copy(nodes[edgeCosts[i][0]]), GC.copy(nodes[edgeCosts[i][1]]));
+		assert (e!=NULL);
+		int costExp = edgeCosts[i][2];
+		int costActual = edgeCostMap.at(GC2.original(e));
+		assert(costExp == costActual);
+	}
+
+	const GraphCopy GC3 (GC2);
+	GraphCopy GC4 = s.reverseSimplification(GC3);
+
+	//Test it
+	AssertGraphEquality(G, GC4);
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//RomeMinimization();
-	Test_SimplificationDeg12_K5();
+	Test_SimplificationDeg12_K5_2();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();

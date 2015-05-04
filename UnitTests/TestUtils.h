@@ -1,33 +1,7 @@
-#pragma once
 
-#include "CppUnitTest.h"
-#include "CppUnitTestAssert.h"
-#include <cstdlib>
-#include <sstream>
-#include <iostream>
-#include <set>
-#include <math.h>
-#include <algorithm>
-#include <tuple>
-#include <ogdf\planarlayout\MixedModelLayout.h>
-#include <ogdf\energybased\FMMMLayout.h>
-#include <ogdf\energybased\StressMajorizationSimple.h>
-#include <ogdf\planarity\BoyerMyrvold.h>
-#include <boost/log/core.hpp>
-#include <boost/log/sinks.hpp>
-#include <boost/log/sinks/basic_sink_backend.hpp>
-#include <boost/log/sinks/frontend_requirements.hpp>
-#include <boost/log/attributes/attribute_value_set.hpp>
-#include <boost/log/core/record_view.hpp>
+// To be included within a class
 
-namespace logging = boost::log;
-namespace sinks = boost::log::sinks;
-
-using namespace Microsoft::VisualStudio::CppUnitTestFramework;
-using namespace std;
-using namespace ogdf;
-
-int RandomInt(int min, int max) 
+static int RandomInt(int min, int max) 
 {
 	int r = rand();
 	r = r % (max-min+1);
@@ -35,7 +9,7 @@ int RandomInt(int min, int max)
 	return r;
 }
 
-void SaveGraph(const Graph& G, const char* prefix)
+static void SaveGraph(const Graph& G, const char* prefix)
 {
 
 	int numNodes = G.numberOfNodes();
@@ -133,7 +107,7 @@ public:
 	}
 };
 
-void RegisterDebugBoostSink()
+static void RegisterDebugBoostSink()
 {
 	boost::shared_ptr< logging::core > core = logging::core::get();
 	typedef sinks::synchronous_sink< UnitTest_output_backend<char> > sink_t;

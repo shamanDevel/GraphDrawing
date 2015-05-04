@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "CppUnitTest.h"
 #include "CppUnitTestAssert.h"
+#include "TestUtilsInclude.h"
 
 #include <cstdlib>
 #include <sstream>
@@ -40,6 +41,13 @@ namespace UnitTests
 	TEST_CLASS(TestSimplification)
 	{
 	public:
+#include "TestUtils.h"
+
+		TEST_CLASS_INITIALIZE(Initialize)
+		{
+			RegisterDebugBoostSink();
+		}
+
 		static Graph createRandomNonPlanarGraph(int n) {
 			GraphGenerator gen;
 			BoyerMyrvold bm;
@@ -177,12 +185,55 @@ namespace UnitTests
 			Assert::IsTrue(bm.isPlanar(GC6));
 		}
 
-		static int RandomInt(int min, int max) 
-		{
-			int r = rand();
-			r = r % (max-min+1);
-			r += min;
-			return r;
+		TEST_METHOD(Test_SimplificationDeg12_K5_2) {
+			//Define a test graph that collapses to a K5
+			Graph G;
+			vector<node> nodes(13);
+			for (int i=0; i<=12; ++i) nodes[i] = G.newNode();
+			int edges[21][2] = {
+				{0,2}, {0,3}, {0,4}, {1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4},
+				{0,5}, {0,6}, {5,7}, {6,7},
+				{7,8}, {7,9}, {8,10}, {9,10},
+				{10,11}, {10,12}, {11,1}, {12,1}
+			};
+			int edgeCosts[10][3] = {
+				{0,1,2}, {0,2,1}, {0,3,1}, {0,4,1},
+				{1,2,1}, {1,3,1}, {1,4,1},
+				{2,3,1}, {2,4,1}, {3,4,1}
+			};
+			for (int i=0; i<21; ++i) {
+				G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+			}
+			SaveGraph(G, "BlownEdgeK5");
+
+			SimplificationDeg12 s (G);
+			const GraphCopy& GC = s.getSimplifiedGraph();
+			const unordered_map<edge, int>& edgeCostMap = s.getEdgeCosts();
+			const GraphCopy& GC2 (GC);
+			SaveGraph(GC, "SimplifiedEdgeK5");
+
+			//GC now should be a K5 with nodes 0..4
+			Assert::AreEqual(5, GC2.numberOfNodes(), L"Wrong node count", LINE_INFO());
+			Assert::AreEqual(10, GC2.numberOfEdges(), L"Wrong edge count", LINE_INFO());
+			node u;
+			forall_nodes(u, GC2) {
+				Assert::AreEqual(4, u->degree());
+			}
+			Assert::IsTrue(isConnected(GC2));
+			Assert::IsTrue(isSimpleUndirected(GC2));
+			for (int i=0; i<10; ++i) {
+				edge e = GC2.searchEdge(GC2.copy(nodes[edgeCosts[i][0]]), GC.copy(nodes[edgeCosts[i][1]]));
+				Assert::IsNotNull(e);
+				int costExp = edgeCosts[i][2];
+				int costActual = edgeCostMap.at(GC2.original(e));
+				Assert::AreEqual(costExp, costActual, L"Wrong edge cost", LINE_INFO());
+			}
+
+			const GraphCopy GC3 (GC2);
+			GraphCopy GC4 = s.reverseSimplification(GC3);
+
+			//Test it
+			AssertGraphEquality(G, GC4);
 		}
 
 	};

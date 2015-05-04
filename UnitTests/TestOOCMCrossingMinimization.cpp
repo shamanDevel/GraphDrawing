@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "CppUnitTest.h"
 #include "CppUnitTestAssert.h"
-#include "TestUtils.h"
+#include "TestUtilsInclude.h"
 
 #include <cstdlib>
 #include <sstream>
@@ -36,6 +36,7 @@ namespace UnitTests
 	TEST_CLASS(TestOOCMCrossingMinimization)
 	{
 	public:
+#include "TestUtils.h"
 
 		TEST_CLASS_INITIALIZE(Initialize)
 		{
@@ -386,16 +387,7 @@ namespace UnitTests
 			SaveGraph(k8, "K8");
 #endif
 		}
-
-		static int RandomInt(int min, int max) 
-		{
-			int r = rand();
-			r = r % (max-min+1);
-			r += min;
-			return r;
-		}
-
-		
+	
 
 	};
 }
