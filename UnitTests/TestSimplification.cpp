@@ -13,6 +13,7 @@
 #include <GraphConverter.h>
 #include <CrossingMinimization.h>
 #include <OOCMCrossingMinimization.h>
+#include <SimplificationBiconnected.h>
 #include <MILP_lp_solve.h>
 #include <SimplificationDeg12.h>
 #include <ogdf/planarity/BoyerMyrvold.h>
@@ -236,5 +237,28 @@ namespace UnitTests
 			AssertGraphEquality(G, GC4);
 		}
 
+		TEST_METHOD(Test_SimplificationBiconnected) {
+			BoyerMyrvold bm;
+			for (int n=7; n<=20; ++n) {
+				for (int i=0; i<5; ++i) {
+					Graph G = createRandomNonPlanarGraph(n);
+					Assert::IsFalse(bm.isPlanar(G));
+
+					SimplificationBiconnected s (G);
+					const vector<GraphCopy>& components = s.getComponents();
+					for (const GraphCopy& GC : components) {
+						Assert::IsFalse(bm.isPlanar(GC));
+					}
+
+					vector<GraphCopy> modifiedComponents(components.size());
+					for (int j=0; j<components.size(); ++j) {
+						modifiedComponents[j] = GraphCopy(components[j]);
+					}
+
+					GraphCopy G2 = s.reverseSimplification(modifiedComponents);
+					AssertGraphEquality(G, G2);
+				}
+			}
+		}
 	};
 }

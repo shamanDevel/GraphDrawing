@@ -48,6 +48,9 @@
     <ClInclude Include="include\SimplificationDeg12.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="include\SimplificationBiconnected.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source/stdafx.cpp">
@@ -69,6 +72,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="source\SimplificationDeg12.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="source\SimplificationBiconnected.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

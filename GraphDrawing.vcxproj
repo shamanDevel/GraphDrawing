@@ -99,6 +99,7 @@
     <ClInclude Include="include\MILP.h" />
     <ClInclude Include="include\MILP_lp_solve.h" />
     <ClInclude Include="include\ogdf_include.h" />
+    <ClInclude Include="include\SimplificationBiconnected.h" />
     <ClInclude Include="include\SimplificationDeg12.h" />
   </ItemGroup>
   <ItemGroup>
@@ -111,6 +112,7 @@
     <ClCompile Include="source\GraphConverter.cpp" />
     <ClCompile Include="source\GraphGenerator.cpp" />
     <ClCompile Include="source\MILP_lp_solve.cpp" />
+    <ClCompile Include="source\SimplificationBiconnected.cpp" />
     <ClCompile Include="source\SimplificationDeg12.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

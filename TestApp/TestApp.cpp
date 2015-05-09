@@ -16,6 +16,7 @@
 #include <CrossingMinimization.h>
 #include <OOCMCrossingMinimization.h>
 #include <SimplificationDeg12.h>
+#include <SimplificationBiconnected.h>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
@@ -28,6 +29,7 @@
 #include <ogdf\energybased\FMMMLayout.h>
 #include <ogdf\energybased\StressMajorizationSimple.h>
 #include <ogdf\planarlayout\MixedModelLayout.h>
+#include <ogdf\basic\simple_graph_alg.h>
 #include <MILP.h>
 #include <MILP_lp_solve.h>
 
@@ -45,6 +47,58 @@ int RandomInt(int min, int max)
 	return r;
 }
 
+void SaveGraph(GraphAttributes& GA, const char* prefix)
+{
+
+	//layout
+	BoyerMyrvold bm;
+	bool planar = bm.isPlanar(GA.constGraph());
+	if (planar) {
+#if 1
+		//use planar layout
+		MixedModelLayout l;
+		l.call(GA);
+#else
+		//use spring layout
+		ogdf::FMMMLayout fmmm;
+		fmmm.useHighLevelOptions(true);
+		fmmm.unitEdgeLength(25.0); 
+		fmmm.newInitialPlacement(true);
+		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+		fmmm.call(GA);
+#endif
+	} else {
+#if 1
+		//use spring layout
+		ogdf::FMMMLayout fmmm;
+		fmmm.useHighLevelOptions(true);
+		fmmm.unitEdgeLength(10.0 * sqrt(GA.constGraph().numberOfEdges())); 
+		fmmm.newInitialPlacement(true);
+		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+		fmmm.call(GA);
+#else
+		ogdf::StressMajorization sm;
+		sm.call(GA);
+#endif
+	}
+
+	//save
+	stringstream s;
+	s << "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\graphs\\";
+	s << prefix;
+	s << "_n";
+	s << GA.constGraph().numberOfNodes();
+	s << "_e";
+	s << GA.constGraph().numberOfEdges();
+	if (planar) {
+		s << "_planar";
+	}
+	//s << ".svg";
+	//GA.writeSVG(s.str().c_str());
+	s << ".gml";
+	GA.writeGML(s.str().c_str());
+	cout << "Graph saved to " << s.str() << endl;
+}
 void SaveGraph(const GraphCopy& G, const char* prefix)
 {
 #ifdef SAVE_GRAPHS
@@ -70,53 +124,7 @@ void SaveGraph(const GraphCopy& G, const char* prefix)
 		}
 	}
 
-	//layout
-	BoyerMyrvold bm;
-	bool planar = bm.isPlanar(G);
-	if (planar) {
-#if 1
-		//use planar layout
-		MixedModelLayout l;
-		l.call(GA);
-#else
-		//use spring layout
-		ogdf::FMMMLayout fmmm;
-		fmmm.useHighLevelOptions(true);
-		fmmm.unitEdgeLength(25.0); 
-		fmmm.newInitialPlacement(true);
-		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
-		fmmm.call(GA);
-#endif
-	} else {
-#if 1
-		//use spring layout
-		ogdf::FMMMLayout fmmm;
-		fmmm.useHighLevelOptions(true);
-		fmmm.unitEdgeLength(10.0 * sqrt(numEdges)); 
-		fmmm.newInitialPlacement(true);
-		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
-		fmmm.call(GA);
-#else
-		ogdf::StressMajorization sm;
-		sm.call(GA);
-#endif
-	}
-
-	//save
-	stringstream s;
-	s << "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\graphs\\";
-	s << prefix;
-	s << "_n";
-	s << numNodes;
-	s << "_e";
-	s << numEdges;
-	if (planar) {
-		s << "_planar";
-	}
-	//s << ".svg";
-	//GA.writeSVG(s.str().c_str());
-	s << ".gml";
-	GA.writeGML(s.str().c_str());
+	SaveGraph(GA, prefix);
 #endif
 }
 
@@ -489,12 +497,124 @@ void Test_SimplificationDeg12_K5_2() {
 	AssertGraphEquality(G, GC4);
 }
 
+
+GraphAttributes showBiconnectedComponents(Graph& G)
+{
+	ogdf::GraphAttributes GA(G, 
+		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType
+		| ogdf::GraphAttributes::edgeLabel);
+	SList<node> nodes;
+	G.allNodes(nodes);
+	for (node n : nodes) {
+		stringstream s;
+		s << n->index();
+		GA.labelNode(n) = s.str().c_str();
+		GA.width(n) = GA.height(n) = 15;
+	}
+
+	EdgeArray<int> edgeArray (G);
+	int count = biconnectedComponents(G, edgeArray);
+	cout << count << " biconnected components found" << endl;
+	edge e;
+	forall_edges(e, G) {
+		stringstream s;
+		s << edgeArray[e];
+		GA.labelEdge(e) = s.str().c_str();
+	}
+
+	return GA;
+}
+void TestBiconnectedComponents() {
+	//First Graph:
+	{
+	Graph G;
+	vector<node> nodes(11);
+	for (int i=0; i<=10; ++i) nodes[i] = G.newNode();
+	int edges[24][2] = {
+		{1,2},{1,3},{1,4},{1,5},{2,3},{2,4},{2,5},{3,4},{3,5},{4,5},
+		{6,7},{6,8},{6,9},{6,10},{7,8},{7,9},{7,10},{8,9},{8,10},{9,10},
+		{0,2},{0,3},
+		{0,7},{0,10}
+	};
+	for (int i=0; i<24; ++i) {
+		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+	}
+	GraphAttributes GA = showBiconnectedComponents(G);
+	SaveGraph(GA, "Biconnected1");
+	SimplificationBiconnected sb (G);
+	int i = 0;
+	for (const GraphCopy& GC : sb.getComponents()) {
+		stringstream s;
+		s << "Biconnected1_" << (++i);
+		SaveGraph(GC, s.str().c_str());
+	}
+	}
+
+	//Second Graph:
+	{
+	Graph G;
+	vector<node> nodes(41);
+	for (int i=0; i<=40; ++i) nodes[i] = G.newNode();
+	int edges[52][2] = {
+		{0,7}, {0,6}, {0,9}, {0,18}, {0,19}, {0,35},
+		{1,8}, {1,9}, {1,26}, {1,10}, {1,20}, {1,16}, {1,28},
+		{2,11}, {2,18}, {2,12}, {2,22}, {2,25}, {2,17},
+		{3,14}, {3,19}, {3,20}, {3,13}, {3,21}, {3,23},
+		{4,35}, {4,5}, {4,16}, {4,17}, {4,15},
+		{5,6}, {7,8}, {10,11}, {12,13}, {14,15},
+		{21,22}, {23,24}, {24,25},
+		{26,31}, {26,27}, {27,28}, {28,29}, {30,31}, {31,32},
+		{33,34}, {33,35}, {34,35}, {33,36}, {33,37}, {37,38}, {37,39}, {37,40}
+	};
+	for (int i=0; i<52; ++i) {
+		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+	}
+	GraphAttributes GA = showBiconnectedComponents(G);
+	SaveGraph(GA, "Biconnected2");
+	SimplificationBiconnected sb (G);
+	int i = 0;
+	for (const GraphCopy& GC : sb.getComponents()) {
+		stringstream s;
+		s << "Biconnected2_" << (++i);
+		SaveGraph(GC, s.str().c_str());
+	}
+	}
+
+	//Third Graph:
+	{
+	Graph G;
+	vector<node> nodes(13);
+	for (int i=0; i<=12; ++i) nodes[i] = G.newNode();
+	int edges[21][2] = {
+		{0,2}, {0,3}, {0,4}, {1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4},
+		{0,5}, {0,6}, {5,7}, {6,7},
+		{7,8}, {7,9}, {8,10}, {9,10},
+		{10,11}, {10,12}, {11,1}, {12,1}
+	};
+	for (int i=0; i<21; ++i) {
+		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
+	}
+	GraphAttributes GA = showBiconnectedComponents(G);
+	SaveGraph(GA, "Biconnected3");
+	SimplificationBiconnected sb (G);
+	int i = 0;
+	for (const GraphCopy& GC : sb.getComponents()) {
+		stringstream s;
+		s << "Biconnected3_" << (++i);
+		SaveGraph(GC, s.str().c_str());
+	}
+	}
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//RomeMinimization();
-	Test_SimplificationDeg12_K5_2();
+	//Test_SimplificationDeg12_K5_2();
+	TestBiconnectedComponents();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();
