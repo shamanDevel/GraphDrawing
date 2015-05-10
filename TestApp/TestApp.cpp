@@ -331,6 +331,20 @@ void RomeMinimization() {
 	cout << "Graph saved" << endl;
 }
 
+Graph createRandomNonPlanarGraph(int n) {
+	GraphGenerator gen;
+	BoyerMyrvold bm;
+	int m = n;
+	while (true) {
+		Graph G = *gen.createRandomGraph(n, m);
+		if (bm.isPlanar(G)) {
+			m++;
+		} else {
+			return G;
+		}
+	}
+}
+
 void AssertGraphEquality(const Graph& G, const GraphCopy& GC)
 {
 	assert(GC.consistencyCheck());
@@ -498,7 +512,7 @@ void Test_SimplificationDeg12_K5_2() {
 }
 
 
-GraphAttributes showBiconnectedComponents(Graph& G)
+void showBiconnectedComponents(Graph& G, const char* prefix)
 {
 	ogdf::GraphAttributes GA(G, 
 		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
@@ -524,7 +538,23 @@ GraphAttributes showBiconnectedComponents(Graph& G)
 		GA.labelEdge(e) = s.str().c_str();
 	}
 
-	return GA;
+	SaveGraph(GA, prefix);
+	SimplificationBiconnected sb (G);
+	int i = 0;
+	const vector<GraphCopy>& components = sb.getComponents();
+	for (const GraphCopy& GC : components) {
+		stringstream s;
+		s << prefix << "_" << (++i);
+		SaveGraph(GC, s.str().c_str());
+	}
+
+	vector<GraphCopy> modifiedComponents(components.size());
+	for (int j=0; j<components.size(); ++j) {
+		modifiedComponents[j] = GraphCopy(components[j]);
+	}
+
+	GraphCopy G2 = sb.reverseSimplification(modifiedComponents);
+	AssertGraphEquality(G, G2);
 }
 void TestBiconnectedComponents() {
 	//First Graph:
@@ -541,15 +571,7 @@ void TestBiconnectedComponents() {
 	for (int i=0; i<24; ++i) {
 		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 	}
-	GraphAttributes GA = showBiconnectedComponents(G);
-	SaveGraph(GA, "Biconnected1");
-	SimplificationBiconnected sb (G);
-	int i = 0;
-	for (const GraphCopy& GC : sb.getComponents()) {
-		stringstream s;
-		s << "Biconnected1_" << (++i);
-		SaveGraph(GC, s.str().c_str());
-	}
+	showBiconnectedComponents(G, "Biconnected1");	
 	}
 
 	//Second Graph:
@@ -571,15 +593,7 @@ void TestBiconnectedComponents() {
 	for (int i=0; i<52; ++i) {
 		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 	}
-	GraphAttributes GA = showBiconnectedComponents(G);
-	SaveGraph(GA, "Biconnected2");
-	SimplificationBiconnected sb (G);
-	int i = 0;
-	for (const GraphCopy& GC : sb.getComponents()) {
-		stringstream s;
-		s << "Biconnected2_" << (++i);
-		SaveGraph(GC, s.str().c_str());
-	}
+	showBiconnectedComponents(G, "Biconnected2");
 	}
 
 	//Third Graph:
@@ -596,15 +610,28 @@ void TestBiconnectedComponents() {
 	for (int i=0; i<21; ++i) {
 		G.newEdge(nodes[edges[i][0]], nodes[edges[i][1]]);
 	}
-	GraphAttributes GA = showBiconnectedComponents(G);
-	SaveGraph(GA, "Biconnected3");
-	SimplificationBiconnected sb (G);
-	int i = 0;
-	for (const GraphCopy& GC : sb.getComponents()) {
-		stringstream s;
-		s << "Biconnected3_" << (++i);
-		SaveGraph(GC, s.str().c_str());
+	showBiconnectedComponents(G, "Biconnected3");
 	}
+}
+
+void Test_SimplificationBiconnected() {
+	BoyerMyrvold bm;
+	for (int n=7; n<=20; ++n) {
+		for (int i=0; i<5; ++i) {
+			Graph G = createRandomNonPlanarGraph(n);
+			
+			SimplificationBiconnected s (G);
+			const vector<GraphCopy>& components = s.getComponents();
+
+			vector<GraphCopy> modifiedComponents(components.size());
+			for (int j=0; j<components.size(); ++j) {
+				modifiedComponents[j] = GraphCopy(components[j]);
+			}
+
+			GraphCopy G2 = s.reverseSimplification(modifiedComponents);
+
+			AssertGraphEquality(G, G2);
+		}
 	}
 }
 
@@ -614,7 +641,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//RomeMinimization();
 	//Test_SimplificationDeg12_K5_2();
-	TestBiconnectedComponents();
+	//TestBiconnectedComponents();
+	Test_SimplificationBiconnected();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();

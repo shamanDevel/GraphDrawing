@@ -409,6 +409,8 @@ public:
 	 */
 	edge newEdge(edge eOrig, node v, adjEntry adjTgt);
 
+	edge newEdgeUnsave(edge eOrig, node v, node w);
+
 	edge newEdge(node v, node w)                   { return Graph::newEdge(v, w); }
 	edge newEdge(adjEntry adjSrc, adjEntry adjTgt) { return Graph::newEdge(adjSrc, adjTgt); }
 	edge newEdge(node v, adjEntry adjTgt)          { return Graph::newEdge(v, adjTgt); }

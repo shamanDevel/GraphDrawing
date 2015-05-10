@@ -356,6 +356,17 @@ edge GraphCopy::newEdge(edge eOrig, node v, adjEntry adjTgt)
 	return e;
 }
 
+edge GraphCopy::newEdgeUnsave(edge eOrig, node v, node w)
+{
+	OGDF_ASSERT(eOrig != 0 && eOrig->graphOf() == m_pGraph);
+	OGDF_ASSERT(v != 0 && v->graphOf() == this);
+	OGDF_ASSERT(w != 0 && w->graphOf() == this);
+
+	edge e = Graph::newEdge(v, w);
+	m_eCopy[m_eOrig[e] = eOrig].pushBack(e);
+
+	return e;
+}
 
 //inserts edge preserving the embedding
 //todo: rename adjEnd to show the symmetric character

@@ -52,7 +52,7 @@ namespace UnitTests
 		static Graph createRandomNonPlanarGraph(int n) {
 			GraphGenerator gen;
 			BoyerMyrvold bm;
-			int m = n;
+			int m = max(n, n*(n-1)/8);
 			while (true) {
 				Graph G = *gen.createRandomGraph(n, m);
 				if (bm.isPlanar(G)) {
@@ -256,6 +256,7 @@ namespace UnitTests
 					}
 
 					GraphCopy G2 = s.reverseSimplification(modifiedComponents);
+
 					AssertGraphEquality(G, G2);
 				}
 			}

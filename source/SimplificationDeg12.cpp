@@ -390,27 +390,29 @@ void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const
 }
 edge SimplificationDeg12::newEdge(GraphCopy& C, edge origE, node copyU, node copyV) const
 {
-	if (C.copy(origE->source()) == copyU) {
-		if (copyV->lastAdj() != NULL) {
-			return C.newEdge(origE, copyU, copyV->lastAdj());
-		}
-	}
-	if (C.copy(origE->target()) == copyV) {
-		if (copyU->lastAdj() != NULL) {
-			return C.newEdge(origE, copyU->lastAdj(), copyV);
-		}
-	}
-	if (C.copy(origE->source()) == copyV) {
-		if (copyU->lastAdj() != NULL) {
-			return C.newEdge(origE, copyV, copyU->lastAdj());
-		}
-	}
-	if (C.copy(origE->target()) == copyU) {
-		if (copyV->lastAdj() != NULL) {
-			return C.newEdge(origE, copyV->lastAdj(), copyU);
-		}
-	}
-	return NULL;
+	return C.newEdgeUnsave(origE, copyU, copyV);
+
+	//if (C.copy(origE->source()) == copyU) {
+	//	if (copyV->lastAdj() != NULL) {
+	//		return C.newEdge(origE, copyU, copyV->lastAdj());
+	//	}
+	//}
+	//if (C.copy(origE->target()) == copyV) {
+	//	if (copyU->lastAdj() != NULL) {
+	//		return C.newEdge(origE, copyU->lastAdj(), copyV);
+	//	}
+	//}
+	//if (C.copy(origE->source()) == copyV) {
+	//	if (copyU->lastAdj() != NULL) {
+	//		return C.newEdge(origE, copyV, copyU->lastAdj());
+	//	}
+	//}
+	//if (C.copy(origE->target()) == copyU) {
+	//	if (copyV->lastAdj() != NULL) {
+	//		return C.newEdge(origE, copyV->lastAdj(), copyU);
+	//	}
+	//}
+	//return NULL;
 }
 
 const GraphCopy& SimplificationDeg12::getSimplifiedGraph() const
