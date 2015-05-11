@@ -51,6 +51,8 @@ private:
 	void mergeDeg2Nodes();
 	void unmergeDeg2Nodes(GraphCopy& C) const;
 	void followDeg2Path(node last, node current, vector<node>& nodes);
+
+	//Deprecated
 	edge newEdge(GraphCopy& C, edge origE, node copyU, node copyV) const;
 
 	struct nodePairHash {
@@ -66,9 +68,28 @@ private:
 
 	unordered_map<node, vector< pair<node, edge> > > deg1Nodes;
 	//unordered_multimap<pair<node, node>, vector<edge>, nodePairHash > deg2Edges;
-	unordered_multimap<edge, vector<edge> > deg2Edges;
-	unordered_set<edge> deg2Case3Edges;
-	unordered_multimap<node, vector<edge> > deg2Circles;
+	//unordered_multimap<edge, vector<edge> > deg2Edges;
+	//unordered_set<edge> deg2Case3Edges;
+	//unordered_multimap<node, vector<edge> > deg2Circles;
+
+	//Describes a path. The first vector contains the inner nodes, 
+	//the second vector the edges between the nodes (including the first and last edge).
+	//Therefore, the vector<edge> has one element more than the vector<node>.
+	//All nodes and edges refer to the original graph
+	typedef pair< vector<node>, vector<edge> > path_t;
+	//Describes a simplification induced by a node of degree 2
+	struct Deg2Info {
+		node sourceOriginal;
+		node targetOriginal;
+		vector< path_t > paths;
+		//for case 2 and 3:
+		edge edgeOriginal;
+		bool deleteEdge;
+	};
+	vector<Deg2Info> deg2Infos;
+
+	void reverseCircle(GraphCopy& C, const Deg2Info& info) const;
+	void reversePath(GraphCopy& C, const Deg2Info& info) const;
 };
 
 }

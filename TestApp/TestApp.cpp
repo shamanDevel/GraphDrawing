@@ -454,10 +454,9 @@ void Test_SimplificationDeg12_K5_1() {
 
 	//reverse simplification
 	GraphCopy GC6 = s.reverseSimplification(GC5);
+	SaveGraph(GC6, "ReversedSolvedK5");
 	assert (GC6.consistencyCheck());
 
-	//save
-	SaveGraph(GC6, "ReversedSolvedK5");
 }
 
 void Test_SimplificationDeg12_K5_2() {
@@ -506,6 +505,7 @@ void Test_SimplificationDeg12_K5_2() {
 
 	const GraphCopy GC3 (GC2);
 	GraphCopy GC4 = s.reverseSimplification(GC3);
+	SaveGraph(GC4, "ReversedEdgeK5");
 
 	//Test it
 	AssertGraphEquality(G, GC4);
@@ -640,9 +640,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//RomeMinimization();
-	//Test_SimplificationDeg12_K5_2();
+	Test_SimplificationDeg12_K5_1();
 	//TestBiconnectedComponents();
-	Test_SimplificationBiconnected();
+	//Test_SimplificationBiconnected();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();

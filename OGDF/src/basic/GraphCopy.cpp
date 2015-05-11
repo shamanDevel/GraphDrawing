@@ -363,7 +363,8 @@ edge GraphCopy::newEdgeUnsave(edge eOrig, node v, node w)
 	OGDF_ASSERT(w != 0 && w->graphOf() == this);
 
 	edge e = Graph::newEdge(v, w);
-	m_eCopy[m_eOrig[e] = eOrig].pushBack(e);
+	auto it = m_eCopy[m_eOrig[e] = eOrig].pushBack(e);
+	m_eIterator[e] = it;
 
 	return e;
 }

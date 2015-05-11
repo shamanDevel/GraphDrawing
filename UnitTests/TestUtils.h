@@ -70,8 +70,8 @@ static void SaveGraph(const Graph& G, const char* prefix)
 	if (planar) {
 		s << "_planar";
 	}
-	s << ".svg";
-	GA.writeSVG(s.str().c_str());
+	s << ".gml";
+	GA.writeGML(s.str().c_str());
 
 }
 
