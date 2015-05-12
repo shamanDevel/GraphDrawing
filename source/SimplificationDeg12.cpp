@@ -413,26 +413,49 @@ void SimplificationDeg12::reversePath(GraphCopy& C, const Deg2Info& info) const
 		auto it = chain.begin();
 		for (int i=0; i<chain.size()-1; ++i) {
 			edge e = *it; ++it;
-			adjEntry a = e->adjTarget()->cyclicSucc()->twin();
+			edge e2 = *it;
+			adjEntry a = e->adjTarget();
+			int counter = 0;
+			while (a->theEdge() == e || a->theEdge() == e2 
+					|| a->twinNode()->degree()==2) { //Introduced by a former expansion -> adj entries are flipped
+				a = a->cyclicSucc();
+				counter++;
+				assert (counter<4); //must be found at index 1 or 3
+			}
+			assert (a != NULL);
 			crossingEdges.pushBack(a);
 		}
 		stringstream s;
 		s << "Reverse crossing from " << info.sourceOriginal->index() << " to "	<< info.targetOriginal->index();
-		s << ", crossing edges (ordered):";
+		s << ", edge chain: {";
+		for (int i=0; i<chain.size()-1; ++i) {
+			if (i>0) s << ", ";
+			edge e = *chain.get(i);
+			s << "(" << e->source()->index() << "," << e->target()->index() << ")";
+		}
+		s << ", (" << chain.back()->source()->index() << "," << chain.back()->target()->index() << ")";
+		s << "}";
+		s << ", crossing edges (ordered): {";
 		for (int i=0; i<crossingEdges.size(); ++i) {
 			if (i>0) s << ", ";
 			s << "(" << (*crossingEdges.get(i))->twinNode()->index() << ","
 				<< (*crossingEdges.get(i))->theNode()->index() << ")";
 		}
+		s << "}";
 		LOG(LOG_LEVEL_DEBUG) << s.str();
 
 		if (info.deleteEdge) {
-			C.removeEdgePath(info.edgeOriginal);
-		}
-
-		for (const path_t& path : info.paths) {
+			stringstream str;
+			edge first = C.original(*chain.begin());
+			assert (first == info.edgeOriginal);
+			//split first edge
+			node s = chain.front()->source();
+			node t = chain.front()->target();
+			C.delCopy(chain.front());
+			str << " Split (" << s->index() << "," << t->index() << ") into {";
 
 			//create nodes
+			const path_t &path = info.paths[0];
 			vector<node> nodeCopy (path.first.size());
 			for (int i=0; i<path.first.size(); ++i) {
 				nodeCopy[i] = C.newNode(path.first[i]);
@@ -442,25 +465,71 @@ void SimplificationDeg12::reversePath(GraphCopy& C, const Deg2Info& info) const
 			for (int i=0; i<path.second.size(); ++i) {
 				node v,w;
 				if (i==0) {
-					v = source;
+					v = s;
 					w = nodeCopy[0];
 				} else if (i==path.second.size()-1) {
 					v = nodeCopy[nodeCopy.size() - 1];
-					w = target;
+					w = t;
 				} else {
 					v = nodeCopy[i-1];
 					w = nodeCopy[i];
 				}
-				C.newEdgeUnsave(path.second[i], v, w);
+				edge newEdge = C.newEdgeUnsave(path.second[i], v, w);
 				oe = path.second[i];
-			}
 
-			//introduce crossings
-			C.insertEdgePath(oe, crossingEdges);
+				if (i>0) str << ", ";
+				str << "(" << newEdge->source()->index() << "," << newEdge->target()->index() << ")";
+			}
+			str << "}";
+			LOG(LOG_LEVEL_DEBUG) << str.str();
 		}
 
-		//TODO
-		//throw "not supported yet";
+		int start = info.deleteEdge ? 1 : 0;
+		for (int i=start; i<info.paths.size(); ++i) {
+			const path_t &path = info.paths[i];
+			stringstream s;
+			s << " Introduce path parallel to (" << source->index() << ","
+				<< target->index() << ")";
+
+			//create nodes
+			vector<node> nodeCopy (path.first.size());
+			for (int i=0; i<path.first.size(); ++i) {
+				nodeCopy[i] = C.newNode(path.first[i]);
+			}
+			//create edges
+			s << ", new edges: {";
+			for (int i=0; i<path.second.size()-1; ++i) {
+				node v,w;
+				if (i==0) {
+					v = source;
+					w = nodeCopy[0];
+				} else {
+					v = nodeCopy[i-1];
+					w = nodeCopy[i];
+				}
+				edge newEdge = C.newEdgeUnsave(path.second[i], v, w);
+				if (i>0) s << ", ";
+				s << "(" << newEdge->source()->index() << "," << newEdge->target()->index() << ")";
+			}
+			s << "}";
+
+			//introduce crossings
+			edge oe = path.second[path.second.size()-1];
+			C.insertEdgePath(oe, crossingEdges);
+			const List<edge>& edgePath = C.chain(oe);
+
+			s << ", insert crossing edge path from " << C.copy(oe->source()) << " to " << C.copy(oe->target());
+			s << ": {";
+			for (int i=0; i<edgePath.size(); ++i) {
+				if (i>0) s << ", ";
+				s << "(" << (*edgePath.get(i))->source()->index() << "," 
+					<< (*edgePath.get(i))->target()->index() << ")";
+			}
+			s << "}";
+
+			LOG(LOG_LEVEL_DEBUG) << s.str();
+		}
+
 	}
 }
 void SimplificationDeg12::unmergeDeg2Nodes(GraphCopy& C) const

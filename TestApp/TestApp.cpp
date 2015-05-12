@@ -109,7 +109,8 @@ void SaveGraph(const GraphCopy& G, const char* prefix)
 	ogdf::GraphAttributes GA(G, 
 		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
 		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
-		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType );
+		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType
+		| ogdf::GraphAttributes::edgeLabel );
 	SList<node> nodes;
 	G.allNodes(nodes);
 	for (node n : nodes) {
@@ -122,6 +123,13 @@ void SaveGraph(const GraphCopy& G, const char* prefix)
 			GA.labelNode(n) = s.str().c_str();
 			GA.width(n) = GA.height(n) = 15;
 		}
+	}
+	SList<edge> edges;
+	G.allEdges(edges);
+	for (edge e : edges) {
+		stringstream s;
+		s << G.original(e)->index();
+		GA.labelEdge(e) = s.str().c_str();
 	}
 
 	SaveGraph(GA, prefix);
@@ -635,14 +643,109 @@ void Test_SimplificationBiconnected() {
 	}
 }
 
+
+Graph createK5() {
+	GraphGenerator gen;
+	return *gen.createRandomGraph(5, 10);
+}
+void blowEdge(Graph& G, int nu, int nv, vector<int> blow)
+{
+	List<node> nodes;
+	G.allNodes(nodes);
+	node u = *nodes.get(nu);
+	node v = *nodes.get(nv);
+	G.delEdge(G.searchEdge(u, v));
+	for (int b : blow) {
+		if (b==1) {
+			G.newEdge(u, v);
+			continue;
+		}
+
+		vector<node> nodes (b-1);
+		for (int i=0; i<b-1; ++i) {
+			nodes[i] = G.newNode();
+		}
+		G.newEdge(u, nodes[0]);
+		for (int i=1; i<b-1; ++i) {
+			G.newEdge(nodes[i-1], nodes[i]);
+		}
+		G.newEdge(nodes[b-2], v);
+	}
+}
+vector<int> makeVector(int i1, int i2=0, int i3=0, int i4=0, int i5=0)
+{
+	vector<int> v;
+	v.push_back(i1);
+	if (i2 != 0) {
+		v.push_back(i2);
+		if (i3 != 0) {
+			v.push_back(i3);
+			if (i4 != 0) {
+				v.push_back(i4);
+				if (i5 != 0) {
+					v.push_back(i5);
+				}
+			}
+		}
+	}
+	return v;
+}
+void TestDeg2SimplificationSolveImpl(Graph& G, string name)
+{
+	SaveGraph(G, name.c_str());
+
+	SimplificationDeg12 s (G);
+	GraphCopy GC1 = s.getSimplifiedGraph();
+	
+	GraphCopy GC2 = s.reverseSimplification(GraphCopy(GC1));
+	AssertGraphEquality(G, GC2);
+	
+	MILP_lp_solve lp;
+	OOCMCrossingMinimization oocm (&lp);
+	CrossingMinimization::solve_result_t result = oocm.solve(GC1, s.getEdgeCosts());
+	GraphCopy GC3 = result->first;
+	
+	BoyerMyrvold bm1;
+	assert (bm1.isPlanar(GC3));
+
+	GraphCopy GC4 = s.reverseSimplification(GC3);
+	SaveGraph(GC4, (name + "Solved").c_str());
+	assert (GC4.consistencyCheck());
+	BoyerMyrvold bm2;
+	assert (bm2.isPlanar(GC4));
+}
+void TestDeg2SimplificationSolve() 
+{
+	//First Test: Blow one edge without crossing
+	Graph G = createK5();
+	blowEdge(G, 0, 1, makeVector(2, 2));
+	TestDeg2SimplificationSolveImpl(G, "Blow1");
+
+	//Second Test: Blow every edge
+	G = createK5();
+	for (int x=0; x<5; ++x)
+		for (int y=x+1; y<5; ++y)
+			blowEdge(G, x, y, makeVector(2,2));
+	TestDeg2SimplificationSolveImpl(G, "Blow2");
+
+	//Third Test: Add path to every edge
+	G = createK5();
+	for (int x=0; x<5; ++x)
+		for (int y=x+1; y<5; ++y)
+			blowEdge(G, x, y, makeVector(1,3));
+	TestDeg2SimplificationSolveImpl(G, "Blow3");
+}
+
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	//RomeMinimization();
-	Test_SimplificationDeg12_K5_1();
+	//Test_SimplificationDeg12_K5_1();
 	//TestBiconnectedComponents();
 	//Test_SimplificationBiconnected();
+	TestDeg2SimplificationSolve();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();
