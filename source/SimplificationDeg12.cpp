@@ -417,13 +417,13 @@ void SimplificationDeg12::reversePath(GraphCopy& C, const Deg2Info& info) const
 			adjEntry a = e->adjTarget();
 			int counter = 0;
 			while (a->theEdge() == e || a->theEdge() == e2 
-					|| a->twinNode()->degree()==2) { //Introduced by a former expansion -> adj entries are flipped
+					/*|| a->twinNode()->degree()==2*/) { //Introduced by a former expansion -> adj entries are flipped
 				a = a->cyclicSucc();
 				counter++;
 				assert (counter<4); //must be found at index 1 or 3
 			}
 			assert (a != NULL);
-			crossingEdges.pushBack(a);
+			crossingEdges.pushBack(a->twin());
 		}
 		stringstream s;
 		s << "Reverse crossing from " << info.sourceOriginal->index() << " to "	<< info.targetOriginal->index();
@@ -445,6 +445,10 @@ void SimplificationDeg12::reversePath(GraphCopy& C, const Deg2Info& info) const
 		LOG(LOG_LEVEL_DEBUG) << s.str();
 
 		if (info.deleteEdge) {
+
+			C.removeEdgePath(oe);
+
+			/*
 			stringstream str;
 			edge first = C.original(*chain.begin());
 			assert (first == info.edgeOriginal);
@@ -482,9 +486,12 @@ void SimplificationDeg12::reversePath(GraphCopy& C, const Deg2Info& info) const
 			}
 			str << "}";
 			LOG(LOG_LEVEL_DEBUG) << str.str();
+
+			*/
 		}
 
-		int start = info.deleteEdge ? 1 : 0;
+		//int start = info.deleteEdge ? 1 : 0;
+		int start = 0;
 		for (int i=start; i<info.paths.size(); ++i) {
 			const path_t &path = info.paths[i];
 			stringstream s;
