@@ -314,28 +314,42 @@ void RomeMinimization() {
 	cout << " Loaded and saved" << endl;
 
 	//Now simplify it
-	GraphCopy GC1 (G);
-	SimplificationDeg12 s (GC1);
-	const GraphCopy& GC2 = s.getSimplifiedGraph();
-	cout << "Graph simplified, contains now " << GC2.numberOfNodes() << " nodes and " 
-		<< GC2.numberOfEdges() << " endges" << endl;
+	SimplificationBiconnected sb(G);
+	const vector<GraphCopy>& components = sb.getComponents();
+	vector<GraphCopy> solvedComponents(components.size());
+	int totalCrossingNumber = 0;
+	for (int i=0; i<components.size(); ++i) {
+		cout << "Solve the " << (i+1) << "th component" << endl;
 
-	//solve crossing minimization
-	OOCMCrossingMinimization cm (new MILP_lp_solve());
-	CrossingMinimization::solve_result_t result = cm.solve(GC2, s.getEdgeCosts());
-	if (!result) {
-		cerr << "Unable to solve crossing minimization" << endl;
-		return;
+		GraphCopy GC1 (components[i]);
+		SimplificationDeg12 s (GC1);
+		const GraphCopy& GC2 = s.getSimplifiedGraph();
+		cout << "Graph simplified, contains now " << GC2.numberOfNodes() << " nodes and " 
+			<< GC2.numberOfEdges() << " endges" << endl;
+
+		stringstream str;
+		str << d.fileName;
+		str << "-" << (i+1) << "-ToSolve";
+		SaveGraph(GC2, str.str().c_str());
+
+		OOCMCrossingMinimization cm (new MILP_lp_solve());
+		CrossingMinimization::solve_result_t result = cm.solve(GC2, s.getEdgeCosts());
+		if (!result) {
+			cerr << "Unable to solve crossing minimization" << endl;
+			return;
+		}
+		GraphCopy GC3 = result->first;
+		cout << "Crossing number: " << result->second << endl;
+		totalCrossingNumber += result->second;
+
+		GraphCopy GC4 = s.reverseSimplification(GC3);
+		solvedComponents[i] = GC4;
 	}
-	GraphCopy GC3 = result->first;
-	cout << "Crossing number: " << result->second << endl;
+	cout << "Total crossing number: " << totalCrossingNumber << endl;
 
-	GraphCopy GC4 = s.reverseSimplification(GC3);
-	assert (GC4.consistencyCheck());
-	cout << "Reversed Simplification" << endl;
+	GraphCopy GS = sb.reverseSimplification(solvedComponents);
+	SaveGraph(GS, (d.fileName + "Solved").c_str());
 
-	//save
-	SaveGraph(GC4, (d.fileName + "Solved").c_str());
 	cout << "Graph saved" << endl;
 }
 
@@ -741,13 +755,15 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
-	//RomeMinimization();
+	RomeMinimization();
 	//Test_SimplificationDeg12_K5_1();
 	//TestBiconnectedComponents();
 	//Test_SimplificationBiconnected();
-	TestDeg2SimplificationSolve();
+	//TestDeg2SimplificationSolve();
 
 	cout << "Press a key to exit ... " << endl;
+	cin.clear();
+	cin.get();
 	cin.clear();
 	cin.get();
 	return 0;

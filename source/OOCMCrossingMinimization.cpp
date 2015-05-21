@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <math.h>
 
 namespace std {
 	bool operator==(const shaman::OOCMCrossingMinimization::crossing& a,
@@ -64,6 +65,15 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 	if (boyerMyrvold.isPlanar(originalGraph)) {
 		return solve_result_t(make_pair(originalGraph, 0));
 	}
+	//pre-check if every node is not a dummy
+	node testN;
+	forall_nodes(testN, originalGraph) {
+		if (originalGraph.isDummy(testN)) {
+			LOG(error) << "Input graph contains dummy nodes";
+			return solve_result_t();
+		}
+	}
+
 	int n = originalGraph.numberOfNodes();
 	int m = originalGraph.numberOfEdges();
 	boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
@@ -88,7 +98,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 	}
 	if (!setObjectiveFunction(crossings, lp, originalGraph, edgeCosts))
 		return solve_result_t();
-	int crLower = crGLower(n, m);
+	int crLower = max(1, crGLower(n, m));
 	int crUpper = crKnUpper(n);
 	if (!addCrossingNumberConstraints(crossings, crLower, crUpper, lp))
 		return solve_result_t();
@@ -143,7 +153,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		if (boyerMyrvold.planarEmbed(GraphCopySimple(G), kuratowski_edges, BoyerMyrvoldPlanar::doFindUnlimited, true)) 
 		{
 			//graph is planar
-			return solve_result_t(make_pair(G, (unsigned int) objective));
+			return solve_result_t(make_pair(G, (unsigned int) floor(objective + 0.5)));
 		}
 		else
 		{
@@ -653,7 +663,9 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 	//maps the nodes created by the path subdivisions to their end-nodes (called kuratowski nodes)
 	map<node, pair<node, node>> kuratowskiPathToNodes;
 	for (pair<node, int> p : kuratowskiNodes) {
-		if (p.second != 2) continue; //a subdivision node always has degree two
+		//if (p.second != 2) continue; //a subdivision node always has degree two
+		if (!realizedGraph.isDummy(p.first)) continue; //a subdivision node has no parent -> dummy
+
 		//follow the path in the edge list until a node with deg(n)>2 is reached
 		const node n = p.first;
 		node u = NULL,v = NULL;
@@ -842,9 +854,9 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 #if LOG_KURATOWSKI_DEBUG_ENABLED == 1
 	{
 	stringstream s;
-	cout << "Paths in K that are edges in G:";
+	s << "Paths in K that are edges in G:";
 	for (const auto& e : kuratowskiEdgesInG) {
-		cout << " (" << e.first << "," << e.second << ")";
+		s << " (" << e.first << "," << e.second << ")";
 	}
 	LOG(debug) << s.str();
 	}
