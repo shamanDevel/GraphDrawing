@@ -25,6 +25,13 @@ public:
 
 	virtual solve_result_t solve(const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts);
 
+	void enableRealizeDebugOutput(bool enabled) {
+		debugRealize = enabled;
+	}
+	void enableKuratowskiDebugEnabled(bool enabled) {
+		debugKuratowski = enabled;
+	}
+
 public: //only for unit tests
 
 	//Describes a crossing. crossing.first < crossing.second
@@ -124,10 +131,10 @@ protected:
 		return true;
 	}
 
-	//void simplifyKuratowskiSubgraph(kuratowski_edges_t& kuratowski_edges);
-
 	MILP* lp;
 	ogdf::BoyerMyrvold boyerMyrvold;
+	bool debugRealize;
+	bool debugKuratowski;
 };
 
 }

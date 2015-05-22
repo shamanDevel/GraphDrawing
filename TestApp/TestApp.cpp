@@ -333,6 +333,8 @@ void RomeMinimization() {
 		SaveGraph(GC2, str.str().c_str());
 
 		OOCMCrossingMinimization cm (new MILP_lp_solve());
+		cm.enableKuratowskiDebugEnabled(false);
+		cm.enableRealizeDebugOutput(false);
 		CrossingMinimization::solve_result_t result = cm.solve(GC2, s.getEdgeCosts());
 		if (!result) {
 			cerr << "Unable to solve crossing minimization" << endl;
