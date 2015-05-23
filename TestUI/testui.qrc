@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="TestUI">
+    <file>clear.png</file>
+    <file>save.png</file>
+    <file>bug.png</file>
+  </qresource>
+</RCC>

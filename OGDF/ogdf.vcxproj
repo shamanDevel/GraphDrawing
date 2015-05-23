@@ -91,7 +91,7 @@
       <AdditionalIncludeDirectories>./;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>OGDF_DEBUG;</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <OpenMPSupport>true</OpenMPSupport>
       <PrecompiledHeader>
       </PrecompiledHeader>

@@ -42,6 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>C:\Users\Sebastian\Documents\C++\GraphDrawing\include;C:\Users\Sebastian\Documents\C++\GraphDrawing\lp_solve_5.5;C:\Users\Sebastian\Documents\C++\GraphDrawing\OGDF;C:\Users\Sebastian\Documents\C++\boost_1_57_0;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Sebastian\Documents\C++\boost_1_57_0\lib32-msvc-11.0;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -60,7 +61,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Users\Sebastian\Documents\C++\boost_1_57_0\lib32-msvc-11.0;C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/liblpsolve55.lib;boost_graph-vc110-mt-gd-1_57.lib;libboost_log-vc110-mt-sgd-1_57.lib;Psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>C:\Users\Sebastian\Documents\C++\GraphDrawing\Debug\GraphDrawing.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/ogdf.lib;C:\Users\Sebastian\Documents\C++\GraphDrawing\Win32\Debug/liblpsolve55.lib;Psapi.lib;boost_graph-vc110-mt-gd-1_57.lib;libboost_log-vc110-mt-gd-1_57.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
