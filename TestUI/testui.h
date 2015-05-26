@@ -1,6 +1,11 @@
 #ifndef TESTUI_H
 #define TESTUI_H
 
+#include <string>
+#include <vector>
+#include <algorithm>
+
+#include <QDebug>
 #include <QtWidgets/QMainWindow>
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -22,6 +27,8 @@
 
 #include "GraphView.h"
 
+using namespace std;
+
 class TestUI : public QMainWindow
 {
 	Q_OBJECT
@@ -31,14 +38,19 @@ public:
 	~TestUI();
 
 private:
+	struct RomeGraphDescr
+	{
+		string fileName;
+		int n;
+		int m;
+	};
+
 	void setupUi();
+	void setupLogBackend();
+	void scanRomeGraphs(string folder, vector<RomeGraphDescr>& target);
 
 private:
 	QWidget *centralWidget;
-	QWidget *outputWidget;
-	QWidget *controlWidget;
-	QWidget *graphWidgetLeft;
-	QWidget *graphWidgetRight;
 
 	QPlainTextEdit *outputConsole;
 	QToolButton *clearOutputButton;
@@ -59,6 +71,8 @@ private:
 	GraphView *originalGraphView;
 	GraphView *solvedGraphView;
 	QLabel *crossingNumberLabel;
+
+	vector<RomeGraphDescr> graphs;
 };
 
 #endif // TESTUI_H

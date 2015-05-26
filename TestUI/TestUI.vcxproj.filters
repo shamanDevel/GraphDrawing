@@ -53,6 +53,18 @@
     <ClCompile Include="GraphView.cpp">
       <Filter>Source Dateien</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_GraphView.cpp">
+      <Filter>Generierte Dateien\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_GraphView.cpp">
+      <Filter>Generierte Dateien\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_QtBoostLogger.cpp">
+      <Filter>Generierte Dateien\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_QtBoostLogger.cpp">
+      <Filter>Generierte Dateien\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="testui.h">
@@ -61,10 +73,11 @@
     <CustomBuild Include="testui.qrc">
       <Filter>Resource Dateien</Filter>
     </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="GraphView.h">
+    <CustomBuild Include="GraphView.h">
       <Filter>Header Dateien</Filter>
-    </ClInclude>
+    </CustomBuild>
+    <CustomBuild Include="QtBoostLogger.h">
+      <Filter>Header Dateien</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

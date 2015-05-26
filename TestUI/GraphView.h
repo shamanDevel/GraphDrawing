@@ -6,6 +6,8 @@
 
 class GraphView : public QGraphicsView
 {
+	Q_OBJECT
+
 public:
 	GraphView(QWidget* parent)
 		: QGraphicsView(parent)
