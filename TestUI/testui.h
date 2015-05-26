@@ -24,6 +24,8 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QTableWidget>
+#include <QtWidgets/QLineEdit>
 
 #include "GraphView.h"
 
@@ -48,6 +50,11 @@ private:
 	void setupUi();
 	void setupLogBackend();
 	void scanRomeGraphs(string folder, vector<RomeGraphDescr>& target);
+	void initGraphTable();
+
+private slots:
+	void filterGraphs();
+	void graphSelected(int row, int column);
 
 private:
 	QWidget *centralWidget;
@@ -56,11 +63,11 @@ private:
 	QToolButton *clearOutputButton;
 	QToolButton *showDebugButton;
 
-	QSpinBox* nodeCountSpinner;
-	QSpinBox* edgeCountSpinner;
+	QLineEdit* nodeCountFilter;
+	QLineEdit* edgeCountFilter;
 	QLabel* nodeCountLabel;
 	QLabel* edgeCountLabel;
-	QListWidget *graphList;
+	QTableWidget *graphList;
 	QPushButton *simplifyButton;
 	QPushButton *solveButton;
 	QPushButton *combineButton;
