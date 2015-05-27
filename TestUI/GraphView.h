@@ -14,6 +14,7 @@ public:
 	{}
 	~GraphView(void) {}
 
+public slots:
 	void showGraph(const ogdf::GraphAttributes& GA);
 };
 

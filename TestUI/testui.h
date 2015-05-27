@@ -27,6 +27,9 @@
 #include <QtWidgets/QTableWidget>
 #include <QtWidgets/QLineEdit>
 
+#include <ogdf/basic/Graph.h>
+#include <ogdf/basic/GraphAttributes.h>
+
 #include "GraphView.h"
 
 using namespace std;
@@ -51,12 +54,17 @@ private:
 	void setupLogBackend();
 	void scanRomeGraphs(string folder, vector<RomeGraphDescr>& target);
 	void initGraphTable();
+	void layoutGraph();
 
 private slots:
 	void filterGraphs();
 	void graphSelected(int row, int column);
+	void clearOutput();
+	void originalLayoutChanged(int index);
 
 private:
+	string folder;
+
 	QWidget *centralWidget;
 
 	QPlainTextEdit *outputConsole;
@@ -80,6 +88,11 @@ private:
 	QLabel *crossingNumberLabel;
 
 	vector<RomeGraphDescr> graphs;
+
+	ogdf::Graph originalG;
+	ogdf::GraphAttributes originalGA;
+	//0: FMMM, 1: Stress Majorization
+	int originalLayout;
 };
 
 #endif // TESTUI_H

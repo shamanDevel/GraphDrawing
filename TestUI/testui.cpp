@@ -1,16 +1,28 @@
 #include "testui.h"
-#include <boost/log/trivial.hpp>
 #include "QtBoostLogger.h"
+
 #include <boost/log/expressions.hpp>
 #include <boost/log/support/date_time.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/graph/graphml.hpp>
+#include <boost/log/trivial.hpp>
+
+#include <ogdf\planarlayout\PlanarDrawLayout.h>
+#include <ogdf\energybased\FMMMLayout.h>
+#include <ogdf\energybased\StressMajorizationSimple.h>
+#include <ogdf\planarlayout\MixedModelLayout.h>
+#include <ogdf\planarity\PlanarizationLayout.h>
+
+#include <GraphConverter.h>
+
+using namespace shaman;
 
 TestUI::TestUI(QWidget *parent)
 	: QMainWindow(parent)
 {
 	setupUi();
 	setupLogBackend();
-	string folder = "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\";
+	folder = "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\";
 	scanRomeGraphs(folder, graphs);
 	initGraphTable();
 
@@ -46,6 +58,7 @@ void TestUI::setupUi()
 	outputLayout->setColumnStretch(1, 1);
 	outputLayout->setRowStretch(2, 1);
 	outputLayout->setSpacing(2);
+	connect(clearOutputButton, SIGNAL(clicked()), this, SLOT(clearOutput()));
 
 	nodeCountFilter = new QLineEdit(centralWidget);
 	edgeCountFilter = new QLineEdit(centralWidget);
@@ -90,6 +103,9 @@ void TestUI::setupUi()
 	QLabel *originalGraphLayoutLabel = new QLabel(QString("Layout:"), centralWidget);
 	QLabel *solvedGraphLayoutLabel = new QLabel(QString("Layout:"), centralWidget);
 	crossingNumberLabel = new QLabel(QString("  Crossing Number: ?"), centralWidget);
+	originalGraphLayoutComboBox->addItems(QStringList() << "Spring (FMMM)" << "Planarization" );
+	solvedGraphLayoutComboBox->addItems(QStringList() << "Mixed Model" << "Planar Draw" << "Planar Straight" << "Spring (FMMM)" );
+	originalLayout = 0;
 	QGridLayout* graphLayoutLeft = new QGridLayout();
 	graphLayoutLeft->addWidget(originalGraphTitle, 0, 0, 1, 1);
 	graphLayoutLeft->addWidget(originalGraphLayoutLabel, 0, 1, 1, 1);
@@ -109,6 +125,7 @@ void TestUI::setupUi()
 	graphLayoutRight->setColumnStretch(4, 1);
 	graphLayoutRight->setRowStretch(1, 1);
 	graphLayoutRight->setSpacing(2);
+	connect(originalGraphLayoutComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(originalLayoutChanged(int)));
 
 	QGridLayout* centralLayout = new QGridLayout(centralWidget);
 	centralLayout->addLayout(controlLayout, 0, 0, 1, 1);
@@ -217,4 +234,73 @@ void TestUI::graphSelected(int row, int column)
 {
 	const RomeGraphDescr& descr = graphs[row];
 	BOOST_LOG_TRIVIAL(info) << "load " << descr.fileName;
+	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> BoostGraph;
+	BoostGraph BG;
+	try {
+		ifstream is (folder + descr.fileName);
+		boost::dynamic_properties properties;
+		boost::read_graphml(is, BG, properties);
+	}
+	catch (const boost::graph_exception& ex)
+	{
+		cerr << ex.what() << '\n';
+		return;
+	}
+	originalG.clear();
+	GraphConverter::convert(BG, originalG);
+	BOOST_LOG_TRIVIAL(info) << "Graph loaded, contains " << originalG.numberOfNodes() << " nodes and "
+		<< originalG.numberOfEdges() << " edges";
+	originalGA = ogdf::GraphAttributes(originalG,
+		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType
+		| ogdf::GraphAttributes::edgeLabel);
+	ogdf::node n;
+	forall_nodes(n, originalG) {
+		originalGA.width(n) = originalGA.height(n) = 20;
+		stringstream s;
+		s << n->index();
+		originalGA.labelNode(n) = s.str().c_str();
+	}
+	ogdf::edge e;
+	forall_edges(e, originalG) {
+		stringstream s;
+		s << e->index();
+		originalGA.labelEdge(e) = s.str().c_str();
+	}
+	layoutGraph();
+}
+
+void TestUI::clearOutput()
+{
+	outputConsole->clear();
+}
+
+void TestUI::originalLayoutChanged(int index)
+{
+	originalLayout = index;
+	if (!originalG.empty()) {
+		layoutGraph();
+	}
+}
+
+void TestUI::layoutGraph()
+{
+	if (originalLayout == 0) { //FMMM
+		ogdf::FMMMLayout fmmm;
+		fmmm.useHighLevelOptions(true);
+		fmmm.unitEdgeLength(25.0); 
+		fmmm.newInitialPlacement(true);
+		fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+		fmmm.call(originalGA);
+		BOOST_LOG_TRIVIAL(info) << "FMMMLayout called";
+	} else if (originalLayout==1) { //Stress Majorization
+		ogdf::PlanarizationLayout pl;
+		pl.preprocessCliques(true);
+		pl.call(originalGA);
+		BOOST_LOG_TRIVIAL(info) << "Planarization called";
+	} else {
+		BOOST_LOG_TRIVIAL(fatal) << "Unknown layout for original graph: " << originalLayout;
+	}
+	originalGraphView->showGraph(originalGA);
 }
