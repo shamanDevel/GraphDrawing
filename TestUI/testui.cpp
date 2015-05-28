@@ -13,8 +13,11 @@
 #include <ogdf\planarlayout\MixedModelLayout.h>
 #include <ogdf\planarity\PlanarizationLayout.h>
 
+#include <unordered_map>
+
 #include <GraphConverter.h>
 
+using namespace std;
 using namespace shaman;
 
 TestUI::TestUI(QWidget *parent)
@@ -25,7 +28,7 @@ TestUI::TestUI(QWidget *parent)
 	folder = "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\";
 	scanRomeGraphs(folder, graphs);
 	initGraphTable();
-
+	switchUIState(0);
 }
 
 TestUI::~TestUI()
@@ -68,8 +71,7 @@ void TestUI::setupUi()
 	QLabel *listTitle = new QLabel(QString("Select Graph"), centralWidget);
 	graphList = new QTableWidget(centralWidget);
 	simplifyButton = new QPushButton(QString("Simplify"), centralWidget);
-	solveButton = new QPushButton(QString("Solve"), centralWidget);
-	combineButton = new QPushButton(QString("Combine"), centralWidget);
+	solveButton = new QPushButton(QString("Solve and combine"), centralWidget);
 	cancelButton = new QPushButton(QString("Cancel"), centralWidget);
 	QStringList header;
 	header << "n" << "m" << "Name";
@@ -85,14 +87,14 @@ void TestUI::setupUi()
 	controlLayout->addWidget(graphList, 4, 0, 1, 2);
 	controlLayout->addWidget(simplifyButton, 5, 0, 1, 2);
 	controlLayout->addWidget(solveButton, 6, 0, 1, 2);
-	controlLayout->addWidget(combineButton, 7, 0, 1, 2);
-	controlLayout->addWidget(cancelButton, 8, 0, 1, 2);
+	controlLayout->addWidget(cancelButton, 7, 0, 1, 2);
 	controlLayout->setRowStretch(4, 1);
 	controlLayout->setColumnStretch(1, 1);
 	controlLayout->setSpacing(2);
 	connect(nodeCountFilter, SIGNAL(textChanged(const QString&)), this, SLOT(filterGraphs()));
 	connect(edgeCountFilter, SIGNAL(textChanged(const QString&)), this, SLOT(filterGraphs()));
 	connect(graphList, SIGNAL(cellClicked(int, int)), this, SLOT(graphSelected(int, int)));
+	connect(simplifyButton, SIGNAL(clicked()), this, SLOT(simplifyGraph()));
 
 	originalGraphLayoutComboBox = new QComboBox(centralWidget);
 	originalGraphView = new GraphView(centralWidget);
@@ -268,7 +270,9 @@ void TestUI::graphSelected(int row, int column)
 		s << e->index();
 		originalGA.labelEdge(e) = s.str().c_str();
 	}
-	layoutGraph();
+	layoutOriginalGraph();
+	if (state != 1)
+		switchUIState(1);
 }
 
 void TestUI::clearOutput()
@@ -280,11 +284,11 @@ void TestUI::originalLayoutChanged(int index)
 {
 	originalLayout = index;
 	if (!originalG.empty()) {
-		layoutGraph();
+		layoutOriginalGraph();
 	}
 }
 
-void TestUI::layoutGraph()
+void TestUI::layoutOriginalGraph()
 {
 	if (originalLayout == 0) { //FMMM
 		ogdf::FMMMLayout fmmm;
@@ -303,4 +307,107 @@ void TestUI::layoutGraph()
 		BOOST_LOG_TRIVIAL(fatal) << "Unknown layout for original graph: " << originalLayout;
 	}
 	originalGraphView->showGraph(originalGA);
+}
+
+void TestUI::switchUIState(int newState)
+{
+	state = newState;
+	if (state == 0) {
+		//initial state
+		originalG.clear();
+		originalGraphLayoutComboBox->setEnabled(false);
+		solvedGraphLayoutComboBox->setEnabled(false);
+		simplifyButton->setEnabled(false);
+		solveButton->setEnabled(false);
+		cancelButton->setEnabled(false);
+		nodeCountFilter->setEnabled(true);
+		edgeCountFilter->setEnabled(true);
+		graphList->setEnabled(true);
+	} else if (state == 1) {
+		//graph loaded
+		originalGraphLayoutComboBox->setEnabled(true);
+		solvedGraphLayoutComboBox->setEnabled(false);
+		simplifyButton->setEnabled(true);
+		solveButton->setEnabled(false);
+	} else if (state == 2) {
+		//simplify
+		simplifyButton->setEnabled(false);
+		solveButton->setEnabled(true);
+	} else if (state == 3) {
+		//solve
+		nodeCountFilter->setEnabled(false);
+		edgeCountFilter->setEnabled(false);
+		graphList->setEnabled(false);
+		solveButton->setEnabled(false);
+		cancelButton->setEnabled(true);
+	} else if (state == 4) {
+		//solved
+		solveButton->setEnabled(false);
+		cancelButton->setEnabled(false);
+		solvedGraphLayoutComboBox->setEnabled(true);
+		nodeCountFilter->setEnabled(true);
+		edgeCountFilter->setEnabled(true);
+		graphList->setEnabled(true);
+	}
+}
+
+void TestUI::simplifyGraph()
+{
+	BOOST_LOG_TRIVIAL(info) << "Simplify graph";
+	
+	//simplfiy it
+	simplBicon = new SimplificationBiconnected(originalG);
+	biconComps = simplBicon->getComponents();
+	simplDeg12v.resize(biconComps.size());
+	BOOST_LOG_TRIVIAL(info) << "Graph splitted into " << biconComps.size() << " non-planar components";
+	for (int i=0; i<biconComps.size(); ++i) {
+		simplDeg12v[i] = new SimplificationDeg12(biconComps[i]);
+		const GraphCopy& C = simplDeg12v[i]->getSimplifiedGraph();
+		BOOST_LOG_TRIVIAL(info) << (i+1) << "th component simplified from " << biconComps[i].numberOfNodes()
+			<< " to " << C.numberOfNodes() << " nodes and from " << biconComps[i].numberOfEdges() << " to "
+			<< C.numberOfEdges() << " edges";
+	}
+
+	//visualize simplification
+	Graph G;
+	unordered_map<node, node> map;
+	for (int i=0; i<biconComps.size(); ++i) {
+		const GraphCopy& C = simplDeg12v[i]->getSimplifiedGraph();
+		node n;
+		forall_nodes(n, C) {
+			node c = G.newNode();
+			node og = C.original(n);
+			if (map.count(og) == 0)
+				map[og] = c;
+		}
+		edge e;
+		forall_edges(e, C) {
+			node u = map.at(C.original(e->source()));
+			node v = map.at(C.original(e->target()));
+			if (u==nullptr || v==nullptr) {
+				BOOST_LOG_TRIVIAL(fatal) << "no copy node found!";
+			}
+			edge c = G.newEdge(u, v);
+			if (c==nullptr) {
+				BOOST_LOG_TRIVIAL(fatal) << "edge is null";
+			}
+		}
+	}
+	GraphAttributes GA(G,
+		ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+		| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+		| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType
+		| ogdf::GraphAttributes::edgeLabel);
+	for (auto p : map) {
+		node o = p.first;
+		node c = p.second;
+		GA.labelNode(c) = originalGA.labelNode(o);
+		GA.width(c) = originalGA.width(o);
+		GA.height(c) = originalGA.height(o);
+		GA.x(c) = originalGA.x(o);
+		GA.y(c) = originalGA.y(o);
+	}
+	solvedGraphView->showGraph(GA);
+
+	switchUIState(2);
 }

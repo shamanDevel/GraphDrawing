@@ -29,10 +29,15 @@
 
 #include <ogdf/basic/Graph.h>
 #include <ogdf/basic/GraphAttributes.h>
+#include <ogdf/basic/GraphCopy.h>
+
+#include <SimplificationBiconnected.h>
+#include <SimplificationDeg12.h>
 
 #include "GraphView.h"
 
 using namespace std;
+using namespace shaman;
 
 class TestUI : public QMainWindow
 {
@@ -54,16 +59,20 @@ private:
 	void setupLogBackend();
 	void scanRomeGraphs(string folder, vector<RomeGraphDescr>& target);
 	void initGraphTable();
-	void layoutGraph();
+	void layoutOriginalGraph();
+	void switchUIState(int newState);
 
 private slots:
 	void filterGraphs();
 	void graphSelected(int row, int column);
 	void clearOutput();
 	void originalLayoutChanged(int index);
+	void simplifyGraph();
 
 private:
 	string folder;
+	// 0: no graph loaded; 1: graph loaded; 2: graph simplified; 3: graph solving; 4: graph solved and merged
+	int state;
 
 	QWidget *centralWidget;
 
@@ -78,7 +87,6 @@ private:
 	QTableWidget *graphList;
 	QPushButton *simplifyButton;
 	QPushButton *solveButton;
-	QPushButton *combineButton;
 	QPushButton *cancelButton;
 
 	QComboBox *originalGraphLayoutComboBox;
@@ -93,6 +101,11 @@ private:
 	ogdf::GraphAttributes originalGA;
 	//0: FMMM, 1: Stress Majorization
 	int originalLayout;
+
+	SimplificationBiconnected* simplBicon;
+	vector<ogdf::GraphCopy> biconComps;
+	vector<SimplificationDeg12*> simplDeg12v;
+	
 };
 
 #endif // TESTUI_H

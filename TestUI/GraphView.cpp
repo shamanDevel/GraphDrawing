@@ -3,6 +3,7 @@
 #include <QtWidgets/QGraphicsScene>
 #include <QtWidgets/QGraphicsSimpleTextItem>
 #include <vector>
+#include <boost/log/trivial.hpp>
 
 using namespace std;
 
