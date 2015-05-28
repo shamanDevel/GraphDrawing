@@ -132,7 +132,6 @@ protected:
 	}
 
 	MILP* lp;
-	ogdf::BoyerMyrvold boyerMyrvold;
 	bool debugRealize;
 	bool debugKuratowski;
 };

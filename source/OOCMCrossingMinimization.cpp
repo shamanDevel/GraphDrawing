@@ -64,6 +64,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 {
 
 	//pre-check for planarity
+	BoyerMyrvold boyerMyrvold;
 	if (boyerMyrvold.isPlanar(originalGraph)) {
 		return solve_result_t(make_pair(originalGraph, 0));
 	}
@@ -161,6 +162,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 
 		//check if the graph is now planar
 		SList<KuratowskiWrapper> kuratowski_edges;
+		BoyerMyrvold boyerMyrvold;
 		if (boyerMyrvold.planarEmbed(GraphCopySimple(G), kuratowski_edges, BoyerMyrvoldPlanar::doFindUnlimited, true)) 
 		{
 			//graph is planar

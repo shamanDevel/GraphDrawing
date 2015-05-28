@@ -35,6 +35,7 @@
 #include <SimplificationDeg12.h>
 
 #include "GraphView.h"
+#include "SolverThread.h"
 
 using namespace std;
 using namespace shaman;
@@ -61,6 +62,7 @@ private:
 	void initGraphTable();
 	void layoutOriginalGraph();
 	void switchUIState(int newState);
+	void layoutSolvedGraph();
 
 private slots:
 	void filterGraphs();
@@ -68,6 +70,9 @@ private slots:
 	void clearOutput();
 	void originalLayoutChanged(int index);
 	void simplifyGraph();
+	void solveGraph();
+	void solvedGraph();
+	void cancelSolving();
 
 private:
 	string folder;
@@ -105,7 +110,12 @@ private:
 	SimplificationBiconnected* simplBicon;
 	vector<ogdf::GraphCopy> biconComps;
 	vector<SimplificationDeg12*> simplDeg12v;
-	
+	vector<pair<ogdf::GraphCopy, unordered_map<edge, int> > > simplifiedGraphs;
+	SolverThread* solverThread;
+
+	ogdf::GraphCopy solvedG;
+	ogdf::GraphAttributes solvedGA;
+	int solvedLayout;
 };
 
 #endif // TESTUI_H

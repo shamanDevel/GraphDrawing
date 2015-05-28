@@ -21,7 +21,7 @@ using namespace std;
 using namespace shaman;
 
 TestUI::TestUI(QWidget *parent)
-	: QMainWindow(parent)
+	: QMainWindow(parent), originalLayout(0), solvedLayout(0)
 {
 	setupUi();
 	setupLogBackend();
@@ -95,6 +95,8 @@ void TestUI::setupUi()
 	connect(edgeCountFilter, SIGNAL(textChanged(const QString&)), this, SLOT(filterGraphs()));
 	connect(graphList, SIGNAL(cellClicked(int, int)), this, SLOT(graphSelected(int, int)));
 	connect(simplifyButton, SIGNAL(clicked()), this, SLOT(simplifyGraph()));
+	connect(solveButton, SIGNAL(clicked()), this, SLOT(solveGraph()));
+	connect(cancelButton, SIGNAL(clicked()), this, SLOT(cancelSolving()));
 
 	originalGraphLayoutComboBox = new QComboBox(centralWidget);
 	originalGraphView = new GraphView(centralWidget);
@@ -333,6 +335,10 @@ void TestUI::switchUIState(int newState)
 		//simplify
 		simplifyButton->setEnabled(false);
 		solveButton->setEnabled(true);
+		nodeCountFilter->setEnabled(true);
+		edgeCountFilter->setEnabled(true);
+		graphList->setEnabled(true);
+		cancelButton->setEnabled(false);
 	} else if (state == 3) {
 		//solve
 		nodeCountFilter->setEnabled(false);
@@ -359,10 +365,13 @@ void TestUI::simplifyGraph()
 	simplBicon = new SimplificationBiconnected(originalG);
 	biconComps = simplBicon->getComponents();
 	simplDeg12v.resize(biconComps.size());
+	simplifiedGraphs.resize(biconComps.size());
 	BOOST_LOG_TRIVIAL(info) << "Graph splitted into " << biconComps.size() << " non-planar components";
 	for (int i=0; i<biconComps.size(); ++i) {
 		simplDeg12v[i] = new SimplificationDeg12(biconComps[i]);
 		const GraphCopy& C = simplDeg12v[i]->getSimplifiedGraph();
+		const unordered_map<edge, int>& edgeCosts = simplDeg12v[i]->getEdgeCosts();
+		simplifiedGraphs[i] = make_pair(C, edgeCosts);
 		BOOST_LOG_TRIVIAL(info) << (i+1) << "th component simplified from " << biconComps[i].numberOfNodes()
 			<< " to " << C.numberOfNodes() << " nodes and from " << biconComps[i].numberOfEdges() << " to "
 			<< C.numberOfEdges() << " edges";
@@ -410,4 +419,78 @@ void TestUI::simplifyGraph()
 	solvedGraphView->showGraph(GA);
 
 	switchUIState(2);
+}
+
+void TestUI::solveGraph()
+{
+	BOOST_LOG_TRIVIAL(info) << "Solve graph";
+	switchUIState(3);
+	solverThread = new SolverThread(this);
+	solverThread->setGraphs(simplifiedGraphs);
+	connect(solverThread, SIGNAL(finished()), this, SLOT(solvedGraph()));
+	solverThread->start();
+}
+
+void TestUI::cancelSolving()
+{
+	solverThread->terminateSolving();
+}
+
+void TestUI::solvedGraph()
+{
+	int crossingNumber = solverThread->getCrossingNumber();
+	if (crossingNumber < 0) {
+		//terminated
+		delete solverThread;
+		switchUIState(2);
+	} else {
+		const vector<GraphCopy>& result = solverThread->getSolvedGraphs();
+		//reverse simplification
+		vector<GraphCopy> result2(result.size());
+		for (int i=0; i<result.size(); ++i) {
+			result2[i] = simplDeg12v[i]->reverseSimplification(result[i]);
+			delete simplDeg12v[i];
+		}
+		solvedG = simplBicon->reverseSimplification(result2);
+		delete simplBicon;
+		delete solverThread;
+		switchUIState(4);
+		//show graph
+		solvedGA = ogdf::GraphAttributes(solvedG,
+			ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
+			| ogdf::GraphAttributes::nodeLabel | ogdf::GraphAttributes::edgeStyle
+			| ogdf::GraphAttributes::nodeColor | ogdf::GraphAttributes::nodeType
+			| ogdf::GraphAttributes::edgeLabel);
+		ogdf::node n;
+		forall_nodes(n, solvedG) {
+			ogdf::node on = solvedG.original(n);
+			if (on == nullptr) {
+				//dummy
+				solvedGA.width(n) = solvedGA.height(n) = 0;
+				solvedGA.labelNode(n) = "";
+			} else {
+				solvedGA.width(n) = solvedGA.height(n) = 20;
+				stringstream s;
+				s << on->index();
+				solvedGA.labelNode(n) = s.str().c_str();
+			}
+		}
+		ogdf::edge e;
+		forall_edges(e, solvedG) {
+			stringstream s;
+			s << solvedG.original(e)->index();
+			originalGA.labelEdge(e) = s.str().c_str();
+		}
+		layoutSolvedGraph();
+	}
+}
+
+void TestUI::layoutSolvedGraph()
+{
+	if (solvedLayout == 0) {
+		BOOST_LOG_TRIVIAL(info) << "MixedModelLayout called";
+		MixedModelLayout l;
+		l.call(solvedGA);
+	}
+	solvedGraphView->showGraph(solvedGA);
 }
