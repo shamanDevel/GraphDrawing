@@ -7,6 +7,9 @@ namespace shaman {
 MILP_lp_solve::MILP_lp_solve(void)
 	: lp(NULL)
 {
+	abortFunction = []() {
+		return CONTINUE;
+	};
 }
 
 
@@ -25,6 +28,9 @@ bool MILP_lp_solve::initialize(unsigned int numVariables)
 	}
 	lp = make_lp(0, numVariables);
 	set_verbose(lp, IMPORTANT);
+	put_abortfunc(lp, [](lprec *lp, void *v) {
+		return ((MILP_lp_solve*) v)->abortFunction();
+	}, this);
 	return lp != NULL;
 }
 
@@ -100,6 +106,11 @@ MILP_lp_solve::SolveResult MILP_lp_solve::solve(real* objective, real** variable
 void MILP_lp_solve::printDebug()
 {
 	print_lp(lp);
+}
+
+void MILP_lp_solve::setAbortFunction(abortfunc_t* abortFunction)
+{
+	this->abortFunction = abortFunction;
 }
 
 }

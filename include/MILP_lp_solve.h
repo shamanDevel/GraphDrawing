@@ -18,9 +18,11 @@ public:
 	virtual bool setObjectiveFunction(int count, real* row, int* colno, Direction dir);
 	virtual SolveResult solve(real* objective, real** variables);
 	virtual void printDebug();
+	virtual void setAbortFunction(abortfunc_t* abortFunction);
 
 private:
 	lprec *lp;
+	abortfunc_t* abortFunction;
 };
 
 }

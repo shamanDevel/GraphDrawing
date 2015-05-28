@@ -49,7 +49,8 @@ using namespace ogdf;
 #define LOG(level) BOOST_LOG_TRIVIAL(level)
 
 OOCMCrossingMinimization::OOCMCrossingMinimization(MILP* lp)
-	: lp(lp), debugKuratowski(LOG_KURATOWSKI_DEBUG_ENABLED), debugRealize(LOG_REALIZE_DEBUG_ENABLED)
+	: CrossingMinimization(),
+	lp(lp), debugKuratowski(LOG_KURATOWSKI_DEBUG_ENABLED), debugRealize(LOG_REALIZE_DEBUG_ENABLED)
 {
 }
 
@@ -61,6 +62,7 @@ OOCMCrossingMinimization::~OOCMCrossingMinimization(void)
 OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 	const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts)
 {
+
 	//pre-check for planarity
 	if (boyerMyrvold.isPlanar(originalGraph)) {
 		return solve_result_t(make_pair(originalGraph, 0));
@@ -84,26 +86,33 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 	vector<crossing> crossings;
 	vector<crossingOrder> crossingOrders;
 	crossingOrderMap_t crossingOrderMap;
+	if (abortFunction() == ABORT) return solve_result_t();
 	createVariables(originalGraph, crossings, crossingOrders);
+	if (abortFunction() == ABORT) return solve_result_t();
 	createCrossingOrdersMap(crossingOrders, crossingOrderMap);
+	if (abortFunction() == ABORT) return solve_result_t();
 	vector<bool> variables (crossings.size() + crossingOrders.size());
 	unordered_map<node, int> crossingNodes;
 
 	//setup lp model
 	if (!lp->initialize(crossings.size() + crossingOrders.size()))
 		return solve_result_t();
+	lp->setAbortFunction(abortFunction);
 	for (unsigned int i=1; i<=crossings.size() + crossingOrders.size(); ++i) {
 		if (!lp->setVariableType(i, MILP::VariableType::Binary))
 			return solve_result_t();
 	}
+	if (abortFunction() == ABORT) return solve_result_t();
 	if (!setObjectiveFunction(crossings, lp, originalGraph, edgeCosts))
 		return solve_result_t();
 	int crLower = max(1, crGLower(n, m));
 	int crUpper = crKnUpper(n);
 	if (!addCrossingNumberConstraints(crossings, crLower, crUpper, lp))
 		return solve_result_t();
+	if (abortFunction() == ABORT) return solve_result_t();
 	if (!addLinearOrderingConstraints(edgeVector, crossings, crossingOrderMap, lp))
 		return solve_result_t();
+	if (abortFunction() == ABORT) return solve_result_t();
 
 	//Main loop
 	vector<bool> oldVariables;
@@ -137,6 +146,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		}
 		LOG(LOG_LEVEL_SOLVE_INFO) << s.str();
 		}
+		if (abortFunction() == ABORT) return solve_result_t();
 		if (variables == oldVariables) {
 			LOG(LOG_LEVEL_SOLVE_WARNING) << "Nothing has changed between this loop and the last loop -> terminate";
 			return solve_result_t();
@@ -147,6 +157,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		crossingNodes.clear();
 		GraphCopy G (originalGraph);
 		realize(originalGraph, G, crossings, crossingOrderMap, variables, crossingNodes);
+		if (abortFunction() == ABORT) return solve_result_t();
 
 		//check if the graph is now planar
 		SList<KuratowskiWrapper> kuratowski_edges;
@@ -158,6 +169,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		else
 		{
 			LOG(LOG_LEVEL_SOLVE_INFO) << "Number of detected Kuratowski-Subdivisions: " << kuratowski_edges.size();
+			if (abortFunction() == ABORT) return solve_result_t();
 			for (KuratowskiWrapper w : kuratowski_edges) {
 				//cout << "Kuratowki-Subgraph:";
 				//for (const auto& e : w.edgeList) {
@@ -168,6 +180,7 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 
 				if (!addKuratowkiConstraints(edgeVector, crossings, crossingOrderMap, variables, w, G, crossingNodes, lp))
 					return solve_result_t();
+				if (abortFunction() == ABORT) return solve_result_t();
 
 				//break; //only one kuratowski subgraph
 			}
@@ -525,6 +538,7 @@ bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 	vector<int> colno(4);
 	for (const auto& m1 : crossingOrderMap) {
 		const edge& e = m1.first;
+		if (abortFunction() == ABORT) return false;
 		for (const auto& m2 : m1.second) {
 			const edge& f = m2.first;
 			for (const auto& m3 : m2.second) {
@@ -577,6 +591,7 @@ bool OOCMCrossingMinimization::addLinearOrderingConstraints(
 		}
 		const auto& me = crossingOrderMap.at(e);
 		for (const auto& m1 : me) {
+			if (abortFunction() == ABORT) return false;
 			const edge& f = m1.first;
 			for (const auto& m2 : m1.second) {
 				const edge& g = m2.first;

@@ -100,6 +100,16 @@ public:
 
 	///	\brief	Prints debug information about the model to stdout.
 	virtual void printDebug() {}
+
+	///	\brief	Allows to terminate the solving process
+	///			This function is called frequently to check if the solving should be stopped.
+	///
+	///	\return	CONTINUE or ABORT
+	typedef int abortfunc_t();
+	static const int ABORT = 1;
+	static const int CONTINUE = 0;
+	///	\brief	Sets the abort function
+	virtual void setAbortFunction(abortfunc_t* abortFunction) = 0;
 };
 
 }

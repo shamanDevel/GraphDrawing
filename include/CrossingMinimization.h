@@ -4,12 +4,16 @@
 #include <boost/optional.hpp>
 #include <ogdf_include.h>
 #include <unordered_map>
+#include <MILP.h>
 
 namespace shaman {
 
 class CrossingMinimization
 {
 public:
+	CrossingMinimization() {
+		abortFunction = []() {return MILP::CONTINUE;};
+	}
 	virtual ~CrossingMinimization() {}
 
 	typedef boost::optional< std::pair<ogdf::GraphCopy, unsigned int> > solve_result_t;
@@ -24,6 +28,12 @@ public:
 	///	\param	edgeCosts	Additional costs attached to edges. The edges must be edges in the source graph (originalGraph.original()).
 	///	\return	The resulting graph with crossing nodes and the crossing number, or an empty optional
 	virtual solve_result_t solve(const ogdf::GraphCopy& originalGraph, const edge_cost_t& edgeCosts) = 0;
+
+	virtual void setAbortFunction(MILP::abortfunc_t* abortFunction) {
+		this->abortFunction = abortFunction;
+	}
+	static const int ABORT = MILP::ABORT;
+	static const int CONTINUE = MILP::CONTINUE;
 
 	// Known bounds for the crossing number
 
@@ -45,6 +55,9 @@ public:
 		cr = max(cr, (int) floor(m*m*m/(n*n*33.75) - 0.9*n)); //Pach and Tóth
 		return cr;
 	}
+
+protected:
+	MILP::abortfunc_t* abortFunction;
 };
 
 }
