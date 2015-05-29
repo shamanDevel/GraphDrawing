@@ -106,7 +106,7 @@ void TestUI::setupUi()
 	QLabel* solvedGraphTitle = new QLabel(QString("Solved Graph    "), centralWidget);
 	QLabel *originalGraphLayoutLabel = new QLabel(QString("Layout:"), centralWidget);
 	QLabel *solvedGraphLayoutLabel = new QLabel(QString("Layout:"), centralWidget);
-	crossingNumberLabel = new QLabel(QString("  Crossing Number: ?"), centralWidget);
+	crossingNumberLabel = new QLabel(QString(""), centralWidget);
 	originalGraphLayoutComboBox->addItems(QStringList() << "Spring (FMMM)" << "Planarization" );
 	solvedGraphLayoutComboBox->addItems(QStringList() << "Mixed Model" << "Planar Draw" << "Planar Straight" << "Spring (FMMM)" );
 	originalLayout = 0;
@@ -339,6 +339,7 @@ void TestUI::switchUIState(int newState)
 		edgeCountFilter->setEnabled(true);
 		graphList->setEnabled(true);
 		cancelButton->setEnabled(false);
+		crossingNumberLabel->setText(QString(""));
 	} else if (state == 3) {
 		//solve
 		nodeCountFilter->setEnabled(false);
@@ -427,6 +428,7 @@ void TestUI::solveGraph()
 	switchUIState(3);
 	solverThread = new SolverThread(this);
 	solverThread->setGraphs(simplifiedGraphs);
+	solverThread->setShowDebugOutput(showDebugButton->isChecked());
 	connect(solverThread, SIGNAL(finished()), this, SLOT(solvedGraph()));
 	solverThread->start();
 }
@@ -444,6 +446,7 @@ void TestUI::solvedGraph()
 		delete solverThread;
 		switchUIState(2);
 	} else {
+		crossingNumberLabel->setText(QString("  Crossing Number: %1").arg(crossingNumber));
 		const vector<GraphCopy>& result = solverThread->getSolvedGraphs();
 		//reverse simplification
 		vector<GraphCopy> result2(result.size());

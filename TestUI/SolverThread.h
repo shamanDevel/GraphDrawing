@@ -22,13 +22,19 @@ public:
 	void terminateSolving();
 
 	void setGraphs(const vector< pair<GraphCopy, unordered_map<edge, int> > >& graphs);
+	void setShowDebugOutput(bool debugOutput) {
+		showDebugOutput = debugOutput;
+	}
 
 	int getCrossingNumber() const;
 	const vector<GraphCopy>& getSolvedGraphs() const;
+	float getCalculationTime() const;
 
 private:
 	const vector< pair<GraphCopy, unordered_map<edge, int> > >* originalGraphs;
 	vector<GraphCopy> solvedGraphs;
 	int crossingNumber;
+	float calculationTime;
+	bool showDebugOutput;
 };
 

@@ -1,4 +1,5 @@
 #include "SolverThread.h"
+#include <QtCore/QElapsedTimer>
 #include <boost/log/trivial.hpp>
 #include <MILP_lp_solve.h>
 
@@ -14,6 +15,9 @@ SolverThread::~SolverThread(void)
 
 void SolverThread::run()
 {
+	QElapsedTimer timer;
+	timer.start();
+
 	crossingNumber = 0;
 	solvedGraphs.reserve(originalGraphs->size());
 	solvedGraphs.clear();
@@ -21,6 +25,8 @@ void SolverThread::run()
 	//solve them
 	MILP* lp = new MILP_lp_solve();
 	OOCMCrossingMinimization* cm = new OOCMCrossingMinimization(lp);
+	cm->enableKuratowskiDebugEnabled(showDebugOutput);
+	cm->enableRealizeDebugOutput(showDebugOutput);
 	cm->setAbortFunction([](){
 		if (QThread::currentThread()->isInterruptionRequested())
 			return CrossingMinimization::ABORT;
@@ -45,7 +51,8 @@ void SolverThread::run()
 			break;
 		}
 	}
-	BOOST_LOG_TRIVIAL(info) << "Solving completed, total crossing number: " << crossingNumber;
+	calculationTime = timer.elapsed() / 1000.0;
+	BOOST_LOG_TRIVIAL(info) << "Solving completed, total crossing number: " << crossingNumber << ", calulation time: " << calculationTime << " sec";
 	delete cm;
 	delete lp;
 }
@@ -69,4 +76,9 @@ void SolverThread::terminateSolving()
 {
 	BOOST_LOG_TRIVIAL(info) << "Termination requested";
 	requestInterruption();
+}
+
+float SolverThread::getCalculationTime() const
+{
+	return calculationTime;
 }
