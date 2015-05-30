@@ -205,7 +205,7 @@ namespace UnitTests
 			Logger::WriteMessage("Objective function set.");
 			SList<edge> edgeVector;
 			K6.allEdges(edgeVector);
-			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
+			Assert::IsTrue(cm.addLinearOrderingConstraints(K6, edgeVector, crossings, crossingOrdersMap, lp),
 				L"unable to add linear ordering constraints", LINE_INFO());
 			Logger::WriteMessage("Linear Ordering Constraints added.");
 			vector<MILP::real> row(1);
@@ -363,7 +363,7 @@ namespace UnitTests
 			Logger::WriteMessage("Objective function set.");
 			SList<edge> edgeVector;
 			K8.allEdges(edgeVector);
-			Assert::IsTrue(cm.addLinearOrderingConstraints(edgeVector, crossings, crossingOrdersMap, lp),
+			Assert::IsTrue(cm.addLinearOrderingConstraints(K8, edgeVector, crossings, crossingOrdersMap, lp),
 				L"unable to add linear ordering constraints", LINE_INFO());
 			Logger::WriteMessage("Linear Ordering Constraints added.");
 			vector<MILP::real> row(1);

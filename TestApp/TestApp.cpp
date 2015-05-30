@@ -332,9 +332,29 @@ void RomeMinimization() {
 		str << "-" << (i+1) << "-ToSolve";
 		SaveGraph(GC2, str.str().c_str());
 
+		//Test this graph
+		node n;
+		forall_nodes(n, GC2) {
+			if (GC2.isDummy(n)) {
+				cerr << "node " << n->index() << " is a dummy node!" << endl; return;
+			}
+		}
+		edge e;
+		forall_edges(e, GC2) {
+			if (GC2.isDummy(e)) {
+				cerr << "edge (" << e->source()->index() << "," << e->target()->index() << ") is a dummy edge!" << endl;
+				return;
+			}
+			if (GC2.chain(GC2.original(e)).size() > 1) {
+				cerr << "original edge of edge (" << e->source()->index() << "," << e->target()->index() 
+					<< ") has multiple copy edges!" << endl;
+				return;
+			}
+		}
+
 		OOCMCrossingMinimization cm (new MILP_lp_solve());
-		cm.enableKuratowskiDebugEnabled(false);
-		cm.enableRealizeDebugOutput(false);
+		cm.enableKuratowskiDebugEnabled(true);
+		cm.enableRealizeDebugOutput(true);
 		CrossingMinimization::solve_result_t result = cm.solve(GC2, s.getEdgeCosts());
 		if (!result) {
 			cerr << "Unable to solve crossing minimization" << endl;

@@ -59,7 +59,7 @@ public: //only for unit tests
 
 	///	\brief	Creates the variables for the ILP formulation.
 	///			outCrossings is sorted
-	void createVariables(const ogdf::Graph& originalG, vector<crossing>& outCrossings, vector<crossingOrder>& outCrossingOrders);
+	void createVariables(const ogdf::GraphCopy& originalG, vector<crossing>& outCrossings, vector<crossingOrder>& outCrossingOrders);
 
 	void createCrossingOrdersMap(const vector<crossingOrder>& crossingOrders, crossingOrderMap_t& outMap);
 
@@ -76,8 +76,8 @@ public: //only for unit tests
 
 	bool addCrossingNumberConstraints(const vector<crossing>& crossings, int crLower, int crUpper, MILP* lp);
 
-	bool addLinearOrderingConstraints(const ogdf::SList<ogdf::edge>& edges, const vector<crossing>& crossings,
-		const crossingOrderMap_t& crossingOrderMap, MILP* lp);
+	bool addLinearOrderingConstraints(const ogdf::GraphCopy& originalG, const ogdf::SList<ogdf::edge>& edges, 
+		const vector<crossing>& crossings, const crossingOrderMap_t& crossingOrderMap, MILP* lp);
 
 	typedef vector< ogdf::edge > kuratowski_edges_t;
 	bool addKuratowkiConstraints(const ogdf::SList<ogdf::edge>& edges,

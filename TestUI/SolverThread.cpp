@@ -2,6 +2,7 @@
 #include <QtCore/QElapsedTimer>
 #include <boost/log/trivial.hpp>
 #include <MILP_lp_solve.h>
+#include <exception>
 
 SolverThread::SolverThread(QObject* parent)
 	: QThread(parent)
@@ -35,6 +36,7 @@ void SolverThread::run()
 	});
 	for (int i=0; i<originalGraphs->size(); ++i) {
 		BOOST_LOG_TRIVIAL(info) << "Solve the " << (i+1) << "th component";
+		try {
 		CrossingMinimization::solve_result_t result = cm->solve(originalGraphs->at(i).first, originalGraphs->at(i).second);
 		if (isInterruptionRequested()) {
 			BOOST_LOG_TRIVIAL(info) << "Terminated by the user";
@@ -47,6 +49,11 @@ void SolverThread::run()
 			solvedGraphs.push_back(result->first);
 		} else {
 			BOOST_LOG_TRIVIAL(warning) << "Unable to solve the " << (i+1) << "th component";
+			crossingNumber = -1;
+			break;
+		}
+		} catch (std::exception& e) {
+			BOOST_LOG_TRIVIAL(fatal) << "Exception while solving: " << e.what();
 			crossingNumber = -1;
 			break;
 		}
