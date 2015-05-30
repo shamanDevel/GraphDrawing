@@ -36,8 +36,12 @@ namespace shaman {
 using namespace std;
 using namespace ogdf;
 
-#define PRINT_CROSSING(os, c) (os) << " (" << (c).first->source()->index() << "," << (c).first->target()->index() << ")x(" << (c).second->source()->index() << "," << (c).second->target()->index() << ")"
-#define PRINT_CROSSING_ORDER(os, o) (os) << " (" << get<0>(o)->source()->index() << "," << get<0>(o)->target()->index() << "),(" << get<1>(o)->source()->index() << "," << get<1>(o)->target()->index() << "),(" << get<2>(o)->source()->index() << "," << get<2>(o)->target()->index() << ")"
+#define PRINT_NODE(n, GC) ((GC).isDummy(n) ? "d" : "") << ((GC).isDummy(n) ? (n)->index() : (GC).original(n)->index())
+#define PRINT_EDGE(e, GC) "(" << PRINT_NODE((e)->source(), (GC)) << "," << PRINT_NODE((e)->target(), (GC)) << ")"
+#define PRINT_CROSSING(c, GC) PRINT_EDGE((c).first, (GC)) << "x" << PRINT_EDGE((c).second, (GC))
+#define PRINT_CROSSING_ORDER(o, GC) PRINT_EDGE(get<0>(o), (GC)) << "," << PRINT_EDGE(get<1>(o), (GC)) << "," << PRINT_EDGE(get<2>(o), (GC))
+//#define PRINT_CROSSING(os, c, GC) (os) << " (" << (GC).original((c).first->source())->index() << "," << (GC).original((c).first->target())->index() << ")x(" << (GC).original((c).second->source())->index() << "," << (GC).original((c).second->target())->index() << ")"
+//#define PRINT_CROSSING_ORDER(os, o, GC) (os) << " (" << (GC).original(get<0>(o)->source())->index() << "," << (GC).original(get<0>(o)->target())->index() << "),(" << (GC).original(get<1>(o)->source())->index() << "," << (GC).original(get<1>(o)->target())->index() << "),(" << (GC).original(get<2>(o)->source())->index() << "," << (GC).original(get<2>(o)->target())->index() << ")"
 
 #define LOG_REALIZE_DEBUG_ENABLED false
 #define LOG_LEVEL_REALIZE_ERROR error
@@ -136,13 +140,13 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		for (unsigned int i=0; i<crossings.size(); ++i) {
 			if (variables[i]) {
 				const crossing& c = crossings[i];
-				PRINT_CROSSING(s, c);
+				s << " " << PRINT_CROSSING(c, originalGraph);
 			}
 		}
 		for (unsigned int i=0; i<crossingOrders.size(); ++i) {
 			if (variables[i + crossings.size()]) {
 				const crossingOrder& o = crossingOrders[i];
-				PRINT_CROSSING_ORDER(s, o);
+				s << " " << PRINT_CROSSING_ORDER(o, originalGraph);
 			}
 		}
 		LOG(LOG_LEVEL_SOLVE_INFO) << s.str();
@@ -355,9 +359,10 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 		for (const auto& a : crossingMap) {
 			edge e = a.first;
 			vector< pair<edge, int> > ex = a.second;
-			s << "edge (" << e->source()->index() << "," << e->target()->index() << ") crosses with";
+			s << "edge " << PRINT_EDGE(e, G) << " crosses with";
 			for (pair<edge, int> f : ex)
-				s << " (" << f.first->source()->index() << "," << f.first->target()->index() << ")->" << f.second;
+				s << " " << PRINT_EDGE(f.first, G) << "->" << f.second;
+			s << " ";
 		}
 		LOG(debug) << s.str();
 	}
@@ -374,7 +379,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 		if (debugRealize) {
 			stringstream s;
 			s << "Introduce crossing between "
-				<< "(" << e->source()->index() << "," << e->target()->index() << ")"
+				<< PRINT_EDGE(e, G)
 				<< " and: ";
 			s;
 			LOG(debug) << s.str();
@@ -386,7 +391,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 		for (pair<edge, int>& f : ex) {
 			stringstream s;
 			if (debugRealize) {
-				s << " (" << f.first->source()->index() << "," << f.first->target()->index() << ")->" << f.second;
+				s << " " << PRINT_EDGE(f.first, G) << "->" << f.second;
 			}
 
 			//check where f crosses e
@@ -395,10 +400,10 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 			int index = indexOf(fx, make_pair(e, f.second));
 			if (index < 0) {
 				stringstream str;
-				str << "ERROR: edge (" << e->source()->index() << "," << e->target()->index() << ")"
-					<< " not found in edge list of (" << f.first->source()->index() << "," << f.first->target()->index() << "): ";
+				str << "ERROR: edge " << PRINT_EDGE(e, G)
+					<< " not found in edge list of " << PRINT_EDGE(f.first, G) << ": ";
 				for (pair<edge, int> h : fx) {
-					str << " (" << h.first->source()->index() << "," << h.first->target()->index() << ")";
+					str << " " << PRINT_EDGE(h.first, G);
 				}
 				LOG(LOG_LEVEL_REALIZE_ERROR) << str;
 				assert(index >= 0);
@@ -419,7 +424,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 			assert (G.isDummy(n));
 			crossingNodes.emplace(n, f.second);
 			if (debugRealize) {
-				s << " -> node " << n->index();
+				s << " -> node " << PRINT_NODE(n, G);
 			}
 			u = n;
 			edge ef1 = G.searchEdge(fSource, n);
@@ -435,7 +440,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 			for (int i=0; i<index; ++i) {
 				fx1.push_back(fx[i]);
 				if (debugRealize) {
-					s << " (" << fx[i].first->source()->index() << "," << fx[i].first->target()->index() << ")";
+					s << " " << PRINT_EDGE(fx[i].first, G);
 				}
 				assert (crossingMap.count(fx[i].first) > 0);
 				vector<pair<edge, int>>& fxx = crossingMap[fx[i].first];
@@ -446,7 +451,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 				if (debugRealize) {
 					s << "[fxx:";
 					for (pair<edge, int> h : crossingMap[fx[i].first])
-						s << "(" << h.first->source()->index() << "," << h.first->target()->index() << ")";
+						s << PRINT_EDGE(h.first, G);
 					s << "]";
 				}
 			}
@@ -455,7 +460,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 			for (unsigned int i=index+1; i<fx.size(); ++i) {
 				fx2.push_back(fx[i]);
 				if (debugRealize)
-					s << " (" << fx[i].first->source()->index() << "," << fx[i].first->target()->index() << ")";
+					s << " " << PRINT_EDGE(fx[i].first, G);
 
 				assert (crossingMap.count(fx[i].first) > 0);
 				vector<pair<edge, int>>& fxx = crossingMap[fx[i].first];
@@ -466,7 +471,7 @@ void OOCMCrossingMinimization::realize(const ogdf::GraphCopy& originalG,
 				if (debugRealize) {
 					s << "[fxx:";
 					for (pair<edge, int> h : crossingMap[fx[i].first])
-						s << "(" << h.first->source()->index() << "," << h.first->target()->index() << ")";
+						s << PRINT_EDGE(h.first, G);
 					s << "]";
 				}
 			}
@@ -699,12 +704,14 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "Kuratowski-Nodes:";
 		for (pair<node, int> p : kuratowskiNodes) {
-			s << "  " << p.second << "x" << p.first->index();
+			s << "  " << p.second << "x" << PRINT_NODE(p.first, realizedGraph);
 		}
 		s << "; ";
 		s << "Subdivision-Nodes go to:";
 		for (pair<node, pair<node, node> > p : kuratowskiPathToNodes) {
-			s << "  " << p.first->index() << "->{" << p.second.first->index() << "," << p.second.second->index() << "}";
+			s << "  " << PRINT_NODE(p.first, realizedGraph) << "->{" 
+				<< PRINT_NODE(p.second.first, realizedGraph) << "," 
+				<< PRINT_NODE(p.second.second, realizedGraph) << "}";
 		}
 		LOG(debug) << s.str();
 	}
@@ -724,7 +731,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "Zk:";
 		for (const crossing& c : Zk) {
-			PRINT_CROSSING(s, c);
+			s << " " << PRINT_CROSSING(c, realizedGraph);
 		}
 		LOG(debug) << s.str();
 	}
@@ -780,7 +787,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "Yk:";
 		for (const crossingOrder& o : Yk) {
-			PRINT_CROSSING_ORDER(s, o);
+			s << " " << PRINT_CROSSING_ORDER(o, realizedGraph);
 		}
 		LOG(debug) << s.str();
 	}
@@ -805,7 +812,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "Xk:";
 		for (const crossing& c : Xk) {
-			PRINT_CROSSING(s, c);
+			s << " " << PRINT_CROSSING(c, realizedGraph);
 		}
 		LOG(debug) << s.str();
 	}
@@ -839,7 +846,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "Paths in K that are edges in G:";
 		for (const auto& e : kuratowskiEdgesInG) {
-			s << " (" << e.first << "," << e.second << ")";
+			s << " (" << PRINT_NODE(e.first, realizedGraph) << "," << PRINT_NODE(e.second, realizedGraph) << ")";
 		}
 		LOG(debug) << s.str();
 	}
@@ -914,7 +921,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		stringstream s;
 		s << "CrPairs:";
 		for (const crossing& c : CrPairs) {
-			PRINT_CROSSING(s, c);
+			s << " " << PRINT_CROSSING(c, realizedGraph);
 		}
 		LOG(debug) << s.str();
 	}
@@ -985,14 +992,12 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 				s << " - ";
 			if (colno[i] <= crossingCount) {
 				const crossing& c = crossings[colno[i]-1];
-				s << "x";
-				PRINT_CROSSING(s, c);
+				s << "x" << PRINT_CROSSING(c, realizedGraph);
 			} else {
 				for (const crossingOrder o : Yk) {
 					int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
 					if (index == colno[i] - 1 - crossingCount) {
-						s << "y";
-						PRINT_CROSSING_ORDER(s, o);
+						s << "y" << PRINT_CROSSING_ORDER(o, realizedGraph);
 						break;
 					}
 				}
