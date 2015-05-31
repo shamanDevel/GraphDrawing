@@ -63,6 +63,7 @@ private:
 	void layoutOriginalGraph();
 	void switchUIState(int newState);
 	void layoutSolvedGraph();
+	void killWaitSolverThread();
 
 private slots:
 	void filterGraphs();
@@ -70,13 +71,15 @@ private slots:
 	void clearOutput();
 	void originalLayoutChanged(int index);
 	void simplifyGraph();
+	void simplifiedGraph();
 	void solveGraph();
 	void solvedGraph();
 	void cancelSolving();
 
 private:
 	string folder;
-	// 0: no graph loaded; 1: graph loaded; 2: graph simplified; 3: graph solving; 4: graph solved and merged
+	// 0: no graph loaded; 1: graph loaded; 2: graph simplifying,
+	// 3: graph simplified; 4: graph solving; 5: graph solved and merged
 	int state;
 
 	QWidget *centralWidget;
@@ -99,6 +102,8 @@ private:
 	GraphView *originalGraphView;
 	GraphView *solvedGraphView;
 	QLabel *crossingNumberLabel;
+	QPushButton *saveOriginalGraphButton;
+	QPushButton *saveSolvedGraphButton;
 
 	vector<RomeGraphDescr> graphs;
 
@@ -107,10 +112,6 @@ private:
 	//0: FMMM, 1: Stress Majorization
 	int originalLayout;
 
-	SimplificationBiconnected* simplBicon;
-	vector<ogdf::GraphCopy> biconComps;
-	vector<SimplificationDeg12*> simplDeg12v;
-	vector<pair<ogdf::GraphCopy, unordered_map<edge, int> > > simplifiedGraphs;
 	SolverThread* solverThread;
 
 	ogdf::GraphCopy solvedG;

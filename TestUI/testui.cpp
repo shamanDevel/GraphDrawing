@@ -21,7 +21,7 @@ using namespace std;
 using namespace shaman;
 
 TestUI::TestUI(QWidget *parent)
-	: QMainWindow(parent), originalLayout(0), solvedLayout(0)
+	: QMainWindow(parent), originalLayout(0), solvedLayout(0), solverThread(NULL)
 {
 	setupUi();
 	setupLogBackend();
@@ -110,6 +110,7 @@ void TestUI::setupUi()
 	originalGraphLayoutComboBox->addItems(QStringList() << "Spring (FMMM)" << "Planarization" );
 	solvedGraphLayoutComboBox->addItems(QStringList() << "Mixed Model" << "Planar Draw" << "Planar Straight" << "Spring (FMMM)" );
 	originalLayout = 0;
+	saveOriginalGraphButton = new QPushButton();
 	QGridLayout* graphLayoutLeft = new QGridLayout();
 	graphLayoutLeft->addWidget(originalGraphTitle, 0, 0, 1, 1);
 	graphLayoutLeft->addWidget(originalGraphLayoutLabel, 0, 1, 1, 1);
@@ -332,7 +333,14 @@ void TestUI::switchUIState(int newState)
 		simplifyButton->setEnabled(true);
 		solveButton->setEnabled(false);
 	} else if (state == 2) {
-		//simplify
+		simplifyButton->setEnabled(false);
+		nodeCountFilter->setEnabled(false);
+		edgeCountFilter->setEnabled(false);
+		graphList->setEnabled(false);
+		solveButton->setEnabled(false);
+		cancelButton->setEnabled(true);
+	} else if (state == 3) {
+		//simplifyed
 		simplifyButton->setEnabled(false);
 		solveButton->setEnabled(true);
 		nodeCountFilter->setEnabled(true);
@@ -340,14 +348,14 @@ void TestUI::switchUIState(int newState)
 		graphList->setEnabled(true);
 		cancelButton->setEnabled(false);
 		crossingNumberLabel->setText(QString(""));
-	} else if (state == 3) {
+	} else if (state == 4) {
 		//solve
 		nodeCountFilter->setEnabled(false);
 		edgeCountFilter->setEnabled(false);
 		graphList->setEnabled(false);
 		solveButton->setEnabled(false);
 		cancelButton->setEnabled(true);
-	} else if (state == 4) {
+	} else if (state == 5) {
 		//solved
 		solveButton->setEnabled(false);
 		cancelButton->setEnabled(false);
@@ -358,31 +366,39 @@ void TestUI::switchUIState(int newState)
 	}
 }
 
+void TestUI::killWaitSolverThread()
+{
+	if (solverThread != NULL) {
+		if (solverThread->isRunning()) {
+			solverThread->requestInterruption();
+			solverThread->goOn();
+			solverThread->wait();
+		}
+		delete solverThread;
+		solverThread = NULL;
+	}
+}
+
 void TestUI::simplifyGraph()
 {
-	BOOST_LOG_TRIVIAL(info) << "Simplify graph";
-	
-	//simplfiy it
-	simplBicon = new SimplificationBiconnected(originalG);
-	biconComps = simplBicon->getComponents();
-	simplDeg12v.resize(biconComps.size());
-	simplifiedGraphs.resize(biconComps.size());
-	BOOST_LOG_TRIVIAL(info) << "Graph splitted into " << biconComps.size() << " non-planar components";
-	for (int i=0; i<biconComps.size(); ++i) {
-		simplDeg12v[i] = new SimplificationDeg12(biconComps[i]);
-		const GraphCopy& C = simplDeg12v[i]->getSimplifiedGraph();
-		const unordered_map<edge, int>& edgeCosts = simplDeg12v[i]->getEdgeCosts();
-		simplifiedGraphs[i] = make_pair(C, edgeCosts);
-		BOOST_LOG_TRIVIAL(info) << (i+1) << "th component simplified from " << biconComps[i].numberOfNodes()
-			<< " to " << C.numberOfNodes() << " nodes and from " << biconComps[i].numberOfEdges() << " to "
-			<< C.numberOfEdges() << " edges";
-	}
+	//create solver thread and simplify
+	killWaitSolverThread();
+	solverThread = new SolverThread(originalG);
+	connect(solverThread, SIGNAL(simplifyingFinished()), this, SLOT(simplifiedGraph()));
+	solverThread->start();
+	switchUIState(2);
+}
+
+void TestUI::simplifiedGraph()
+{
+	disconnect(solverThread, SIGNAL(simplifyingFinished()), this, SLOT(simplifiedGraph()));
 
 	//visualize simplification
+	vector<const GraphCopy*> components = solverThread->getSimplifiedComponents();
 	Graph G;
 	unordered_map<node, node> map;
-	for (int i=0; i<biconComps.size(); ++i) {
-		const GraphCopy& C = simplDeg12v[i]->getSimplifiedGraph();
+	for (int i=0; i<components.size(); ++i) {
+		const GraphCopy C = *components[i];
 		node n;
 		forall_nodes(n, C) {
 			node c = G.newNode();
@@ -419,23 +435,21 @@ void TestUI::simplifyGraph()
 	}
 	solvedGraphView->showGraph(GA);
 
-	switchUIState(2);
+	switchUIState(3);
 }
 
 void TestUI::solveGraph()
 {
-	BOOST_LOG_TRIVIAL(info) << "Solve graph";
-	switchUIState(3);
-	solverThread = new SolverThread(this);
-	solverThread->setGraphs(simplifiedGraphs);
-	solverThread->setShowDebugOutput(showDebugButton->isChecked());
 	connect(solverThread, SIGNAL(finished()), this, SLOT(solvedGraph()));
-	solverThread->start();
+	switchUIState(4);
+	solverThread->goOn();
 }
 
 void TestUI::cancelSolving()
 {
 	solverThread->terminateSolving();
+	killWaitSolverThread();
+	switchUIState(1);
 }
 
 void TestUI::solvedGraph()
@@ -443,21 +457,10 @@ void TestUI::solvedGraph()
 	int crossingNumber = solverThread->getCrossingNumber();
 	if (crossingNumber < 0) {
 		//terminated
-		delete solverThread;
 		switchUIState(2);
 	} else {
 		crossingNumberLabel->setText(QString("  Crossing Number: %1").arg(crossingNumber));
-		const vector<GraphCopy>& result = solverThread->getSolvedGraphs();
-		//reverse simplification
-		vector<GraphCopy> result2(result.size());
-		for (int i=0; i<result.size(); ++i) {
-			result2[i] = simplDeg12v[i]->reverseSimplification(result[i]);
-			delete simplDeg12v[i];
-		}
-		solvedG = simplBicon->reverseSimplification(result2);
-		delete simplBicon;
-		delete solverThread;
-		switchUIState(4);
+		const GraphCopy solvedG = *solverThread->getSolvedGraph();
 		//show graph
 		solvedGA = ogdf::GraphAttributes(solvedG,
 			ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
@@ -485,7 +488,10 @@ void TestUI::solvedGraph()
 			originalGA.labelEdge(e) = s.str().c_str();
 		}
 		layoutSolvedGraph();
+		switchUIState(5);
 	}
+	delete solverThread;
+	solverThread = NULL;
 }
 
 void TestUI::layoutSolvedGraph()
