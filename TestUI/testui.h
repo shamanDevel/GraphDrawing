@@ -75,6 +75,8 @@ private slots:
 	void solveGraph();
 	void solvedGraph();
 	void cancelSolving();
+	void saveOriginalGraph();
+	void saveSolvedGraph();
 
 private:
 	string folder;
@@ -106,13 +108,17 @@ private:
 	QPushButton *saveSolvedGraphButton;
 
 	vector<RomeGraphDescr> graphs;
-
+	std::string selectedGraphName;
 	ogdf::Graph originalG;
 	ogdf::GraphAttributes originalGA;
 	//0: FMMM, 1: Stress Majorization
 	int originalLayout;
 
 	SolverThread* solverThread;
+	int crossingNumber;
+	float simplificationTime;
+	float solvingTime;
+	float combiningTime;
 
 	ogdf::GraphCopy solvedG;
 	ogdf::GraphAttributes solvedGA;

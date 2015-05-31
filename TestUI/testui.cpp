@@ -14,8 +14,10 @@
 #include <ogdf\planarity\PlanarizationLayout.h>
 
 #include <unordered_map>
+#include <sstream>
 
 #include <GraphConverter.h>
+#include "LatexExporter.h"
 
 using namespace std;
 using namespace shaman;
@@ -111,13 +113,17 @@ void TestUI::setupUi()
 	solvedGraphLayoutComboBox->addItems(QStringList() << "Mixed Model" << "Planar Draw" << "Planar Straight" << "Spring (FMMM)" );
 	originalLayout = 0;
 	saveOriginalGraphButton = new QPushButton();
+	saveSolvedGraphButton = new QPushButton();
+	saveOriginalGraphButton->setIcon(QIcon(QString(":/TestUI/save.png")));
+	saveSolvedGraphButton->setIcon(QIcon(QString(":/TestUI/save.png")));
 	QGridLayout* graphLayoutLeft = new QGridLayout();
 	graphLayoutLeft->addWidget(originalGraphTitle, 0, 0, 1, 1);
 	graphLayoutLeft->addWidget(originalGraphLayoutLabel, 0, 1, 1, 1);
 	graphLayoutLeft->addWidget(originalGraphLayoutComboBox, 0, 2, 1, 1);
-	graphLayoutLeft->addItem(new QSpacerItem(0, 0, QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding), 0, 3, 1, 1);
-	graphLayoutLeft->addWidget(originalGraphView, 1, 0, 1, 4);
-	graphLayoutLeft->setColumnStretch(3, 1);
+	graphLayoutLeft->addWidget(saveOriginalGraphButton, 0, 3, 1, 1);
+	graphLayoutLeft->addItem(new QSpacerItem(0, 0, QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding), 0, 4, 1, 1);
+	graphLayoutLeft->addWidget(originalGraphView, 1, 0, 1, 5);
+	graphLayoutLeft->setColumnStretch(4, 1);
 	graphLayoutLeft->setRowStretch(1, 1);
 	graphLayoutLeft->setSpacing(2);
 	QGridLayout* graphLayoutRight = new QGridLayout();
@@ -125,12 +131,15 @@ void TestUI::setupUi()
 	graphLayoutRight->addWidget(solvedGraphLayoutLabel, 0, 1, 1, 1);
 	graphLayoutRight->addWidget(solvedGraphLayoutComboBox, 0, 2, 1, 1);
 	graphLayoutRight->addWidget(crossingNumberLabel, 0, 3, 1, 1);
-	graphLayoutRight->addItem(new QSpacerItem(0, 0, QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding), 0, 4, 1, 1);
-	graphLayoutRight->addWidget(solvedGraphView, 1, 0, 1, 5);
-	graphLayoutRight->setColumnStretch(4, 1);
+	graphLayoutRight->addWidget(saveSolvedGraphButton, 0, 4, 1, 1);
+	graphLayoutRight->addItem(new QSpacerItem(0, 0, QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding), 0, 5, 1, 1);
+	graphLayoutRight->addWidget(solvedGraphView, 1, 0, 1, 6);
+	graphLayoutRight->setColumnStretch(5, 1);
 	graphLayoutRight->setRowStretch(1, 1);
 	graphLayoutRight->setSpacing(2);
 	connect(originalGraphLayoutComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(originalLayoutChanged(int)));
+	connect(saveOriginalGraphButton, SIGNAL(clicked()), this, SLOT(saveOriginalGraph()));
+	connect(saveSolvedGraphButton, SIGNAL(clicked()), this, SLOT(saveSolvedGraph()));
 
 	QGridLayout* centralLayout = new QGridLayout(centralWidget);
 	centralLayout->addLayout(controlLayout, 0, 0, 1, 1);
@@ -238,6 +247,7 @@ void TestUI::filterGraphs()
 void TestUI::graphSelected(int row, int column)
 {
 	const RomeGraphDescr& descr = graphs[row];
+	selectedGraphName = descr.fileName;
 	BOOST_LOG_TRIVIAL(info) << "load " << descr.fileName;
 	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> BoostGraph;
 	BoostGraph BG;
@@ -319,6 +329,8 @@ void TestUI::switchUIState(int newState)
 		//initial state
 		originalG.clear();
 		originalGraphLayoutComboBox->setEnabled(false);
+		saveOriginalGraphButton->setEnabled(false);
+		saveSolvedGraphButton->setEnabled(false);
 		solvedGraphLayoutComboBox->setEnabled(false);
 		simplifyButton->setEnabled(false);
 		solveButton->setEnabled(false);
@@ -328,11 +340,15 @@ void TestUI::switchUIState(int newState)
 		graphList->setEnabled(true);
 	} else if (state == 1) {
 		//graph loaded
+		saveOriginalGraphButton->setEnabled(true);
+		saveSolvedGraphButton->setEnabled(false);
 		originalGraphLayoutComboBox->setEnabled(true);
 		solvedGraphLayoutComboBox->setEnabled(false);
 		simplifyButton->setEnabled(true);
 		solveButton->setEnabled(false);
 	} else if (state == 2) {
+		//simplifying
+		saveSolvedGraphButton->setEnabled(false);
 		simplifyButton->setEnabled(false);
 		nodeCountFilter->setEnabled(false);
 		edgeCountFilter->setEnabled(false);
@@ -363,6 +379,7 @@ void TestUI::switchUIState(int newState)
 		nodeCountFilter->setEnabled(true);
 		edgeCountFilter->setEnabled(true);
 		graphList->setEnabled(true);
+		saveSolvedGraphButton->setEnabled(true);
 	}
 }
 
@@ -454,12 +471,15 @@ void TestUI::cancelSolving()
 
 void TestUI::solvedGraph()
 {
-	int crossingNumber = solverThread->getCrossingNumber();
+	crossingNumber = solverThread->getCrossingNumber();
 	if (crossingNumber < 0) {
 		//terminated
 		switchUIState(2);
 	} else {
 		crossingNumberLabel->setText(QString("  Crossing Number: %1").arg(crossingNumber));
+		simplificationTime = solverThread->getSimplificationTime();
+		solvingTime = solverThread->getSolvingTime();
+		combiningTime = solverThread->getCombiningTime();
 		const GraphCopy solvedG = *solverThread->getSolvedGraph();
 		//show graph
 		solvedGA = ogdf::GraphAttributes(solvedG,
@@ -502,4 +522,25 @@ void TestUI::layoutSolvedGraph()
 		l.call(solvedGA);
 	}
 	solvedGraphView->showGraph(solvedGA);
+}
+
+void TestUI::saveOriginalGraph()
+{
+	vector<string> comments;
+	comments.push_back(string("Layout: ") + (originalLayout==0 ? "FMMMLayout" : "Planarization"));
+	LatexExporter::save(originalGA, selectedGraphName, comments, this);
+}
+void TestUI::saveSolvedGraph()
+{
+	vector<string> comments;
+	comments.push_back(string("Layout: MixedModelLayout"));
+	stringstream s;
+	s << "Crossing Number: " << crossingNumber;
+	comments.push_back(s.str());
+	s = stringstream();
+	s << "Calculation Time (sec): Simplification: " << simplificationTime;
+	s << "  Solving: " << solvingTime;
+	s << "  Combining: " << combiningTime;
+	comments.push_back(s.str());
+	LatexExporter::save(originalGA, selectedGraphName + "_solved", comments, this);
 }
