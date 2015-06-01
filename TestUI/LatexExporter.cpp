@@ -29,9 +29,9 @@ void LatexExporter::save(const GraphAttributes& GA, const string& fileName,
 
 		ofstream o (file.toStdString(), ofstream::out);
 		o << "\\begin{tikzpicture}" << endl;
-		o << "\t\\tikzstyle{vertex}=[circle,fill=black!25,minimum size=10pt,inner sep=0pt]" << endl;
+		o << "\t\\tikzstyle{vertex}=[circle,fill=black!25,minimum size=20,inner sep=0pt]" << endl;
 		o << "\t\\tikzstyle{crossing}=[minimum size=0pt,inner sep=0pt]" << endl;
-		o << "\t\\tikzstyle{edge}=[line width=1mm]" << endl;
+		o << "\t\\tikzstyle{edge}=[thin]" << endl;
 
 		node n;
 		double minX = 1e20;

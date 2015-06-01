@@ -157,7 +157,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..;..\bfp;..\bfp\bfp_LUSOL;..\bfp\bfp_LUSOL\LUSOL;..\colamd;..\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;WIN32;_WINDOWS;MSDOS;CHECK_SOLUTION;YY_NEVER_INTERACTIVE;PARSER_LP;INVERSE_ACTIVE=INVERSE_LUSOL;RoleIsExternalInvEngine;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_SCL_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <StructMemberAlignment>8Bytes</StructMemberAlignment>
       <PrecompiledHeader />
       <PrecompiledHeaderOutputFile>$(Platform)\$(Configuration)\lib.pch</PrecompiledHeaderOutputFile>
