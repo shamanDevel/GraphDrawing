@@ -36,7 +36,7 @@ namespace shaman {
 using namespace std;
 using namespace ogdf;
 
-#define PRINT_NODE(n, GC) ((GC).isDummy(n) ? "d" : "") << ((GC).isDummy(n) ? (n)->index() : (GC).original(n)->index())
+#define PRINT_NODE(n, GC) ((n)==NULL ? "NULL" : ((GC).original((n))==NULL ? "d" : "")) << ((n)==NULL ? 0 : ((GC).original((n))==NULL ? (n)->index() : (GC).original((n))->index()))
 #define PRINT_EDGE(e, GC) "(" << PRINT_NODE((e)->source(), (GC)) << "," << PRINT_NODE((e)->target(), (GC)) << ")"
 #define PRINT_CROSSING(c, GC) PRINT_EDGE((c).first, (GC)) << "x" << PRINT_EDGE((c).second, (GC))
 #define PRINT_CROSSING_ORDER(o, GC) PRINT_EDGE(get<0>(o), (GC)) << "," << PRINT_EDGE(get<1>(o), (GC)) << "," << PRINT_EDGE(get<2>(o), (GC))
@@ -143,13 +143,13 @@ OOCMCrossingMinimization::solve_result_t OOCMCrossingMinimization::solve(
 		for (unsigned int i=0; i<crossings.size(); ++i) {
 			if (variables[i]) {
 				const crossing& c = crossings[i];
-				s << " " << PRINT_CROSSING(c, originalGraph);
+				s << " " << PRINT_OCROSSING(c);
 			}
 		}
 		for (unsigned int i=0; i<crossingOrders.size(); ++i) {
 			if (variables[i + crossings.size()]) {
 				const crossingOrder& o = crossingOrders[i];
-				s << " " << PRINT_CROSSING_ORDER(o, originalGraph);
+				s << " " << PRINT_OCROSSING_ORDER(o);
 			}
 		}
 		LOG(LOG_LEVEL_SOLVE_INFO) << s.str();
@@ -511,8 +511,8 @@ bool OOCMCrossingMinimization::setObjectiveFunction(
 	vector<MILP::real> row (crossings.size());
 	vector<int> colno (crossings.size());
 	for (unsigned int i=0; i<crossings.size(); ++i) {
-		edge oe = originalGraph.original(crossings[i].first);
-		edge of = originalGraph.original(crossings[i].second);
+		edge oe = crossings[i].first;
+		edge of = crossings[i].second;
 		assert (oe != NULL);
 		assert (of != NULL);
 		int cost = edgeCosts.at(oe) * edgeCosts.at(of);

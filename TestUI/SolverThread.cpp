@@ -77,6 +77,20 @@ bool SolverThread::simplifyGraph()
 
 	return true;
 }
+void inline assertHasOriginal(const GraphCopy& GC, const node n) {
+	node on = GC.original(n);
+	assert (on != NULL);
+	node v;
+	forall_nodes(v, GC.original()) {
+		if (v == on) return;
+	}
+	assert (false); //Illegal original node
+}
+void inline assertHasOriginal(const GraphCopy& GC, const edge e) {
+	assert (GC.original(e) != NULL);
+	assertHasOriginal(GC, e->source());
+	assertHasOriginal(GC, e->target());
+}
 bool SolverThread::solveGraph()
 {
 	QElapsedTimer timer;
@@ -97,6 +111,16 @@ bool SolverThread::solveGraph()
 	results.clear();
 	for (int i=0; i<deg12.size(); ++i) {
 		BOOST_LOG_TRIVIAL(info) << "Solve the " << (i+1) << "th component";
+
+#ifdef _DEBUG
+		node n;
+		forall_nodes (n, deg12[i]->getSimplifiedGraph())
+			assertHasOriginal(deg12[i]->getSimplifiedGraph(), n); 
+		edge e;
+		forall_edges (e, deg12[i]->getSimplifiedGraph())
+			assertHasOriginal(deg12[i]->getSimplifiedGraph(), e);
+#endif
+
 		try {
 			CrossingMinimization::solve_result_t result = cm->solve(deg12[i]->getSimplifiedGraph(), deg12[i]->getEdgeCosts());
 			if (isInterruptionRequested()) {
@@ -116,6 +140,7 @@ bool SolverThread::solveGraph()
 		} catch (std::exception& e) {
 			BOOST_LOG_TRIVIAL(fatal) << "Exception while solving: " << e.what();
 			crossingNumber = -1;
+			throw;
 			return false;
 		}
 	}

@@ -344,6 +344,9 @@ void TestUI::switchUIState(int newState)
 		saveSolvedGraphButton->setEnabled(false);
 		originalGraphLayoutComboBox->setEnabled(true);
 		solvedGraphLayoutComboBox->setEnabled(false);
+		nodeCountFilter->setEnabled(true);
+		edgeCountFilter->setEnabled(true);
+		graphList->setEnabled(true);
 		simplifyButton->setEnabled(true);
 		solveButton->setEnabled(false);
 	} else if (state == 2) {
@@ -464,6 +467,7 @@ void TestUI::solveGraph()
 
 void TestUI::cancelSolving()
 {
+	cancelButton->setEnabled(false);
 	solverThread->terminateSolving();
 	killWaitSolverThread();
 	switchUIState(1);
@@ -471,10 +475,15 @@ void TestUI::cancelSolving()
 
 void TestUI::solvedGraph()
 {
+	if (solverThread == NULL) {
+		//terminated
+		switchUIState(1);
+		return;
+	}
 	crossingNumber = solverThread->getCrossingNumber();
 	if (crossingNumber < 0) {
 		//terminated
-		switchUIState(2);
+		switchUIState(1);
 	} else {
 		crossingNumberLabel->setText(QString("  Crossing Number: %1").arg(crossingNumber));
 		simplificationTime = solverThread->getSimplificationTime();
