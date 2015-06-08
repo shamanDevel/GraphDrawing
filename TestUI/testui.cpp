@@ -489,7 +489,8 @@ void TestUI::solvedGraph()
 		simplificationTime = solverThread->getSimplificationTime();
 		solvingTime = solverThread->getSolvingTime();
 		combiningTime = solverThread->getCombiningTime();
-		const GraphCopy solvedG = *solverThread->getSolvedGraph();
+		const GraphCopy solvedG2 = *solverThread->getSolvedGraph();
+		solvedG = solvedG2; //copy
 		//show graph
 		solvedGA = ogdf::GraphAttributes(solvedG,
 			ogdf::GraphAttributes::nodeGraphics | ogdf::GraphAttributes::edgeGraphics
@@ -514,7 +515,7 @@ void TestUI::solvedGraph()
 		forall_edges(e, solvedG) {
 			stringstream s;
 			s << solvedG.original(e)->index();
-			originalGA.labelEdge(e) = s.str().c_str();
+			//originalGA.labelEdge(e) = s.str().c_str();
 		}
 		layoutSolvedGraph();
 		switchUIState(5);
@@ -551,5 +552,5 @@ void TestUI::saveSolvedGraph()
 	s << "  Solving: " << solvingTime;
 	s << "  Combining: " << combiningTime;
 	comments.push_back(s.str());
-	LatexExporter::save(originalGA, selectedGraphName + "_solved", comments, this);
+	LatexExporter::save(solvedGA, selectedGraphName + "_solved", comments, this);
 }
