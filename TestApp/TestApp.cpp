@@ -17,6 +17,10 @@
 #include <OOCMCrossingMinimization.h>
 #include <SimplificationDeg12.h>
 #include <SimplificationBiconnected.h>
+#include <boost/config.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
@@ -240,6 +244,52 @@ void createRomeGraphsInfo(string folder)
 		cerr << ex.what() << '\n';
 	}
 	fclose(file);
+}
+
+void searchBiconnectedRomeGraph() {
+	namespace logging = boost::log;
+	logging::core::get()->set_filter
+    (
+        logging::trivial::severity >= logging::trivial::warning
+    );
+
+	string folder = "C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\";
+	vector<RomeGraphDescr> graphs;
+	scanRomeGraphs(folder, graphs);
+
+	int index = 0;
+	for (const RomeGraphDescr& d : graphs)
+	{
+		index++;
+		if (index % 100 == 0) {
+			cout << index << "/" << graphs.size() << endl;
+		}
+
+		typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> BoostGraph;
+		BoostGraph BG;
+		try {
+			ifstream is (folder + d.fileName);
+			boost::dynamic_properties properties;
+			boost::read_graphml(is, BG, properties);
+			bool planar = boost::boyer_myrvold_planarity_test(BG);
+			assert (!planar);
+		}
+		catch (const boost::graph_exception& ex)
+		{
+			cerr << ex.what() << '\n';
+			continue;
+		}
+		Graph G;
+		GraphConverter::convert(BG, G);
+
+		SimplificationBiconnected sb(G);
+		const vector<GraphCopy>& components = sb.getComponents();
+		
+		if (components.size() > 1) {
+			cout << "Graph " << d.fileName << " (n=" << d.n << ", m=" << d.m << ") can be splitted into " 
+				<< components.size() << " biconnected components" << endl;
+		}
+	}
 }
 
 void RomeMinimization() {
@@ -778,6 +828,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
 	RomeMinimization();
+	//searchBiconnectedRomeGraph();
 	//Test_SimplificationDeg12_K5_1();
 	//TestBiconnectedComponents();
 	//Test_SimplificationBiconnected();

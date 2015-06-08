@@ -1,0 +1,63 @@
+\begin{tikzpicture}
+	\tikzstyle{vertex}=[circle,fill=black!25,minimum size=20,inner sep=0pt]
+	\tikzstyle{crossing}=[minimum size=0pt,inner sep=0pt]
+	\tikzstyle{edge}=[thin]
+	\node[vertex] (0) at (1.80894,0.97561) {0};
+	\node[vertex] (1) at (2.32724,2.19512) {1};
+	\node[vertex] (2) at (1.19411,2.80488) {2};
+	\node[vertex] (3) at (0.731707,4.26829) {3};
+	\node[vertex] (4) at (0.731707,3.90244) {4};
+	\node[vertex] (5) at (1.46341,3.53659) {5};
+	\node[vertex] (6) at (0.365854,2.80488) {6};
+	\node[vertex] (7) at (1.09756,5) {7};
+	\node[vertex] (8) at (0.365854,2.19512) {8};
+	\node[vertex] (9) at (2.42378,0) {9};
+	\node[vertex] (10) at (2.87602,0.365854) {10};
+	\node[vertex] (11) at (0,2.19512) {11};
+	\node[vertex] (12) at (1.09756,4.63415) {12};
+	\node[vertex] (13) at (1.09756,4.26829) {13};
+	\node[vertex] (14) at (1.46341,3.17073) {14};
+	\node[vertex] (15) at (0.731707,2.80488) {15};
+	\node[vertex] (16) at (2.32724,0.97561) {16};
+	\node[vertex] (17) at (2.42378,0.365854) {17};
+	\node[vertex] (18) at (1.09756,3.53659) {18};
+	\node[vertex] (19) at (0.731707,3.53659) {19};
+	\node[vertex] (20) at (1.96138,2.19512) {20};
+	\node[vertex] (21) at (2.05793,0) {21};
+	\node[vertex] (22) at (2.06301,1.34146) {22};
+	\node[vertex] (23) at (2.87602,5) {23};
+	\node[vertex] (24) at (0,5) {24};
+	\draw[edge] (3) -- (0.731707,4.20732) coordinate -- (0.731707,3.96341) coordinate -- (4);
+	\draw[edge] (8) -- (0.304878,2.19512) coordinate -- (0.0609756,2.19512) coordinate -- (11);
+	\draw[edge] (7) -- (1.09756,4.93902) coordinate -- (1.09756,4.69512) coordinate -- (12);
+	\draw[edge] (2) -- (1.25508,2.80488) coordinate -- (1.76829,2.80488) coordinate -- (1.76829,3.90244) coordinate -- (1.76829,4.21748) coordinate -- (1.15854,4.21748) coordinate -- (13);
+	\draw[edge] (3) -- (0.792683,4.26829) coordinate -- (1.03659,4.26829) coordinate -- (13);
+	\draw[edge] (5) -- (1.46341,3.47561) coordinate -- (1.46341,3.23171) coordinate -- (14);
+	\draw[edge] (6) -- (0.365854,2.86585) coordinate -- (0.365854,4.63415) coordinate -- (1.03659,4.63415) coordinate -- (12);
+	\draw[edge] (6) -- (0.426829,2.80488) coordinate -- (0.670732,2.80488) coordinate -- (15);
+	\draw[edge] (2) -- (1.13313,2.80488) coordinate -- (0.792683,2.80488) coordinate -- (15);
+	\draw[edge] (0) -- (1.86992,0.97561) coordinate -- (2.26626,0.97561) coordinate -- (16);
+	\draw[edge] (10) -- (2.81504,0.365854) coordinate -- (2.48476,0.365854) coordinate -- (17);
+	\draw[edge] (4) -- (0.792683,3.90244) coordinate -- (1.76829,3.90244) coordinate -- (2.0122,3.90244) coordinate -- (2.63211,3.90244) coordinate -- (2.63211,0.670732) coordinate -- (2.47459,0.670732) coordinate -- (2.47459,0.426829) coordinate -- (17);
+	\draw[edge] (16) -- (2.37805,0.914634) coordinate -- (2.37805,0.426829) coordinate -- (17);
+	\draw[edge] (9) -- (2.42378,0.0609756) coordinate -- (2.42378,0.304878) coordinate -- (17);
+	\draw[edge] (2) -- (1.14837,2.86585) coordinate -- (1.14837,3.47561) coordinate -- (18);
+	\draw[edge] (4) -- (0.731707,3.84146) coordinate -- (0.731707,3.59756) coordinate -- (19);
+	\draw[edge] (15) -- (0.731707,2.86585) coordinate -- (0.731707,3.47561) coordinate -- (19);
+	\draw[edge] (6) -- (0.365854,2.7439) coordinate -- (0.365854,2.2561) coordinate -- (8);
+	\draw[edge] (2) -- (1.24492,2.7439) coordinate -- (1.24492,2.5) coordinate -- (1.91565,2.5) coordinate -- (1.91565,2.2561) coordinate -- (20);
+	\draw[edge] (1) -- (2.26626,2.19512) coordinate -- (2.02236,2.19512) coordinate -- (20);
+	\draw[edge] (8) -- (0.426829,2.19512) coordinate -- (1.90041,2.19512) coordinate -- (20);
+	\draw[edge] (12) -- (1.15854,4.63415) coordinate -- (2.0122,4.63415) coordinate -- (2.0122,3.90244) coordinate -- (2.0122,2.2561) coordinate -- (20);
+	\draw[edge] (17) -- (2.3628,0.365854) coordinate -- (1.50407,0.365854) coordinate -- (1.50407,1.89024) coordinate -- (1.91057,1.89024) coordinate -- (1.91057,2.13415) coordinate -- (20);
+	\draw[edge] (0) -- (1.76321,1.03659) coordinate -- (1.76321,1.64634) coordinate -- (1.96646,1.64634) coordinate -- (1.96646,2.13415) coordinate -- (20);
+	\draw[edge] (12) -- (1.09756,4.57317) coordinate -- (1.09756,4.32927) coordinate -- (13);
+	\draw[edge] (5) -- (1.40244,3.53659) coordinate -- (1.15854,3.53659) coordinate -- (18);
+	\draw[edge] (9) -- (2.3628,0) coordinate -- (2.1189,0) coordinate -- (21);
+	\draw[edge] (20) -- (2.01728,2.13415) coordinate -- (2.01728,1.40244) coordinate -- (22);
+	\draw[edge] (18) -- (1.03659,3.53659) coordinate -- (0.792683,3.53659) coordinate -- (19);
+	\draw[edge] (10) -- (2.87602,0.426829) coordinate -- (2.87602,4.93902) coordinate -- (23);
+	\draw[edge] (7) -- (1.15854,5) coordinate -- (2.81504,5) coordinate -- (23);
+	\draw[edge] (11) -- (0,2.2561) coordinate -- (0,4.93902) coordinate -- (24);
+	\draw[edge] (7) -- (1.03659,5) coordinate -- (0.0609756,5) coordinate -- (24);
+\end{tikzpicture}
