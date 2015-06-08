@@ -1000,7 +1000,7 @@ bool OOCMCrossingMinimization::addKuratowkiConstraints(const SList<edge>& edges,
 		}
 	}
 	for (const crossingOrder& o : Yk) {
-		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<1>(o));
+		int index = crossingOrderMap.at(get<0>(o)).at(get<1>(o)).at(get<2>(o));
 		assert (index >= 0);
 		row.push_back(-1);
 		colno.push_back(index + crossingCount + 1);
