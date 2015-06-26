@@ -520,8 +520,8 @@ void TestUI::solvedGraph()
 		layoutSolvedGraph();
 		switchUIState(5);
 	}
-	delete solverThread;
-	solverThread = NULL;
+	//delete solverThread;
+	//solverThread = NULL;
 }
 
 void TestUI::layoutSolvedGraph()

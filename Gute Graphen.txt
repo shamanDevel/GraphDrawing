@@ -1,3 +1,12 @@
-n=25, m=33: 2016
-n=30, m=44: 1345
-n=19, m=31: 468
+n=25, m=33: 2016		planarization cr=2,  OOCM cr=2
+n=19, m=31: 468			planarization cr=2,  OOCM cr=1
+n=32, m=41: 1411		planarization cr=2,  OOCM cr=1
+n=30, m=40: 1261		planarization cr=3,  OOCM cr=2, 7 sec
+n=45, m=56: 7446		planarization cr=2,  OOCM cr=1, 7 sec
+
+n=35, m=46: 11348		planarization cr=4,  OOCM cr=4, 250 sec
+n=30, m=40: 171			planarization cr=3,  OOCM cr=3, 100 sec (eine Kreuzung zu viel?)
+
+n=37, m=47: 11323  kann nicht gelöst werden
+n=37, m=48: 6905   Planarization cr=2,  OOCM cr=3 !! (keine Mehrfachkreuzungen ?!?)
+n=22, m=31: 146    stürzt ab

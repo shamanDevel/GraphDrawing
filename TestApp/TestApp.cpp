@@ -822,17 +822,55 @@ void TestDeg2SimplificationSolve()
 	TestDeg2SimplificationSolveImpl(G, "Blow3");
 }
 
+// Tests if a double K5 is biconnected
+void TestDoubleK5Bicon() 
+{
+	Graph G;
+	vector<node> nodes;
+	for (int i=0; i<5*2+1; ++i) {
+		nodes.push_back(G.newNode());
+	}
+	for (int i=0; i<4; ++i) {
+		for (int j=i+1; j<5; ++j) {
+			G.newEdge(nodes[i], nodes[j]);
+		}
+	}
+	for (int i=5; i<9; ++i) {
+		for (int j=i+1; j<10; ++j) {
+			G.newEdge(nodes[i], nodes[j]);
+		}
+	}
+	G.newEdge(nodes[0], nodes[10]);
+	G.newEdge(nodes[1], nodes[10]);
+	G.newEdge(nodes[5], nodes[10]);
+	G.newEdge(nodes[6], nodes[10]);
+	EdgeArray<int> edgeIndices (G);
+	int count = biconnectedComponents(G, edgeIndices);
+	cout << count << " biconnected components found" << endl;;
+	for (int i=0; i<count; ++i) {
+		cout << "Component " << (i+1) << ":";
+		edge e;
+		forall_edges(e, G) {
+			if (edgeIndices[e] == i) {
+				cout << " (" << e->source()->index() << "," << e->target()->index() << ")";
+			}
+		}
+		cout << endl;
+	}
+}
+
 
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//TestMinimization();
 	//createRomeGraphsInfo("C:\\Users\\Sebastian\\Documents\\C++\\GraphDrawing\\example-data\\");
-	RomeMinimization();
+	//RomeMinimization();
 	//searchBiconnectedRomeGraph();
 	//Test_SimplificationDeg12_K5_1();
 	//TestBiconnectedComponents();
 	//Test_SimplificationBiconnected();
 	//TestDeg2SimplificationSolve();
+	TestDoubleK5Bicon();
 
 	cout << "Press a key to exit ... " << endl;
 	cin.clear();
